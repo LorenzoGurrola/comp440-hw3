@@ -136,6 +136,30 @@ def test_a_run_with_a_failed_claim_has_no_report(monkeypatch, tmp_path, capsys):
     assert len((out_dir / "agent.jsonl").read_text().splitlines()) == 11
 
 
+def test_runs_with_no_verdict_finish_the_run_and_the_line_says_where_the_viewer_lists_them(monkeypatch, tmp_path,
+                                                                                          capsys):
+    """The flow simulations of Nov 14: the report's last line said "out of steps" (the homework says
+    lookups) and "Look for them in the saved files." It now names the section of the run's page in
+    the results viewer that lists them, by its title in viewer/app.py, and the run is finished."""
+    def two_without(claim):
+        result = always_supported(claim)
+        if claim in ("claim 2", "claim 5"):
+            result["verdict"] = None
+        return result
+
+    monkeypatch.setitem(evaluate.METHODS, "agent", two_without)
+    _, out_dir = run_main(monkeypatch, tmp_path)
+    printed = capsys.readouterr().out
+    line = ("2 runs gave no verdict (for example a refusal, out of lookups or its answer rejected three "
+            "times). They count as wrong. The results viewer lists them on this run's page, under "
+            "\"Claims with no verdict, or that stopped with an error\".")
+    assert line in printed
+    assert (out_dir / "report.txt").read_text().rstrip().endswith(line)    # finished: report.txt saved
+    viewer = (Path(__file__).parent.parent / "viewer" / "app.py").read_text(encoding="utf-8")
+    assert "<h3>Claims with no verdict, or that stopped with an error</h3>" in viewer
+    assert "out of steps" not in printed and "saved files" not in printed
+
+
 def test_lookup_with_no_log_prints_but_does_not_add_to_the_record(monkeypatch, tmp_path, capsys):
     import lookup
     monkeypatch.setattr(lookup, "load_dotenv", lambda: None)  # leave your own .env alone

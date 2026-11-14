@@ -194,9 +194,10 @@ def report(items, results_by_method, out_dir=None):
     failed = sum("error" in r for r in every_run)
     no_verdict = sum(r["verdict"] is None for r in every_run) - failed
     if no_verdict:
-        say(f"\n{no_verdict} runs gave no verdict (for example a refusal, out of steps or "
+        say(f"\n{no_verdict} runs gave no verdict (for example a refusal, out of lookups or "
             "its answer rejected three times). "
-            "They count as wrong. Look for them in the saved files.")
+            "They count as wrong. The results viewer lists them on this run's page, under "
+            "\"Claims with no verdict, or that stopped with an error\".")
     if failed:
         say(f"\n{failed} runs stopped with an error, such as Wikipedia refusing requests. "
             "They count as wrong above, but they were not saved: run the same command "

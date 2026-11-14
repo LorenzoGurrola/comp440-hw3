@@ -41,6 +41,8 @@ are both fine in your answers.
 - The run stopped early, or its tables end with a line saying some runs stopped with an error. Run
   `uv run python evaluate.py data/eval.jsonl --out runs/part2` again. It keeps every claim it already
   finished.
+- The tables end with "N runs gave no verdict". That is not an error: the run is finished, and those
+  claims count as wrong.
 
 ## 2b. Check the evidence yourself
 

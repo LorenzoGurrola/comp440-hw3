@@ -456,6 +456,16 @@ def test_actions_and_write_up_hold_no_loose_explanation(step):
     assert not loose, f"{step}: move these under Words in this step, Interpreting output, Troubleshooting or Hint: {loose}"
 
 
+def test_2a_says_runs_with_no_verdict_are_not_an_error():
+    """The flow simulations of Nov 14, run A: the report ended "2 runs gave no verdict ...", and 2a's
+    Troubleshooting says to start the run again when its tables end with a line about runs that
+    stopped with an error. A student could read the two as one and start a needless run."""
+    page = one_line(sections((ROOT / "instructions/part2.md").read_text(encoding="utf-8"))["2a. Compare accuracy"])
+    assert ("- The tables end with \"N runs gave no verdict\". That is not an error: the run is finished, and "
+            "those claims count as wrong.") in page
+    assert "its tables end with a line saying some runs stopped with an error. Run" in page   # still there
+
+
 def test_0d_asks_about_wikidata_and_says_how_to_find_out():
     """The instructor, Nov 11: "include a section that asks the user to describe wikidata briefly
     and explain why it may be important to this task." It is 0d's third question, where the
