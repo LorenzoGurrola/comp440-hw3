@@ -612,6 +612,17 @@ def test_long_runs_are_shown_as_run_yourself():
             assert "run_yourself" not in s, step_id
 
 
+def test_1e_looks_before_its_first_reply(a):
+    """The flow simulations of Nov 14, run A: the student started the full run before starting 1e
+    with Claude, and the tutor's first reply told them to start it. A second run would write into
+    runs/part2 alongside the first. The brief now has the tutor look first."""
+    brief = flat(a.step("1e").brief)
+    assert ("Before your first reply, check with `ls runs/part2`. If no-tools.jsonl is there, the run has "
+            "started: say so, and name the next task, the predictions under 1e in WRITEUP.md, in their "
+            "editor.") in brief
+    assert a.step("1e").files == ["runs/part2/no-tools.jsonl"]     # the file that ticks "started"
+
+
 def test_only_1a_and_1e_hide_their_results():
     """1e asks the student not to look at results yet; 1a's file is the loop check's record, not a run."""
     steps = {s["id"]: s for s in raw()["step"]}

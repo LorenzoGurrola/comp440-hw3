@@ -1058,6 +1058,9 @@ If they ask you to start it instead, do it in the background, and say once that 
 this session is closed. Never add `--fresh` to it. They must not change instructions.md while it
 runs, because the agent reads it again for every claim.
 
+Before your first reply, check with `ls runs/part2`. If no-tools.jsonl is there, the run has
+started: say so, and name the next task, the predictions under 1e in WRITEUP.md, in their editor.
+
 While it runs, the student fills in the predictions table under 1e in WRITEUP.md, in their editor.
 Once they say the run has started, say that in one line: next, they type their predictions and
 their answer in WRITEUP.md while it runs. For each
