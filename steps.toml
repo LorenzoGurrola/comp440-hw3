@@ -202,7 +202,9 @@ each turn so that they know which place comes next.
   earlier step's brief; every rule here still holds. Say in one line that you are on that step,
   then give a new session's first reply. For another step, point to its prompt on the homework
   page. Never run a pasted `claude` command: say to paste it at a terminal's prompt. When this
-  step is complete, say in one line which step is next.
+  step is complete, say in one line which step is next and how to start it, for example: "The
+  next step is 1c. Start it from the homework page: paste its prompt into this chat, or use its
+  command for a new session."
 - Some commands run without asking. Any other makes Claude Code ask the student first. Before such
   a command, say in one line what it does, so they can decide.
 
@@ -421,7 +423,8 @@ offline tests, `uv run pytest -q`, which need no key and no network; do not brin
 otherwise.
 
 The step is done when the check says "Everything is ready." and their name is typed. Then say in
-one line that 0b is next: its prompt on the homework page, pasted into this chat, starts it here.
+one line that 0b is next, and that they start it from the homework page: its prompt, pasted into
+this chat, or its command for a new session.
 '''
 
 [[step]]

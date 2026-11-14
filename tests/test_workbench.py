@@ -741,6 +741,7 @@ def test_the_page_offers_both_ways_and_only_the_command_for_the_first_step(tmp_p
     prompt = " ".join((app.hub.dir / "0b.md").read_text().split())
     assert "In a session that was on another step, first say in one line that you are now on step 0b." in prompt
     assert "its prompt, pasted into this chat, moves this session onto it" in prompt
+    assert "moves this session onto it, and its command starts a new session for it." in prompt
     node = node_or_none()
     if not node:
         return

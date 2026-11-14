@@ -140,7 +140,9 @@ each turn so that they know which place comes next.
   earlier step's brief; every rule here still holds. Say in one line that you are on that step,
   then give a new session's first reply. For another step, point to its prompt on the homework
   page. Never run a pasted `claude` command: say to paste it at a terminal's prompt. When this
-  step is complete, say in one line which step is next.
+  step is complete, say in one line which step is next and how to start it, for example: "The
+  next step is 1c. Start it from the homework page: paste its prompt into this chat, or use its
+  command for a new session."
 - Some commands run without asking. Any other makes Claude Code ask the student first. Before such
   a command, say in one line what it does, so they can decide.
 

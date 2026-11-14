@@ -1041,8 +1041,8 @@ How the page works, so you don't duplicate it:
 - It commits "Part {s.part} done" when every step of Part {s.part} is complete. Never run git commit,
   git push or anything that rewrites history; those calls are refused.
 - If the student asks about another step, name it, and say in one line that they start it from
-  that step on the page: its prompt, pasted into this chat, moves this session onto it. The other
-  steps are:
+  that step on the page: its prompt, pasted into this chat, moves this session onto it, and its
+  command starts a new session for it. The other steps are:
 {others}
 
 Keep the page up to date with the `page` skill, using `{label}` as the step: post a one-line status

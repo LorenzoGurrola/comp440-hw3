@@ -502,6 +502,18 @@ def test_a_session_serves_one_step_at_a_time_and_can_go_on_to_the_next(a):
     assert "in its own session" not in flat(a.step("0a").brief)
 
 
+def test_the_hand_off_to_the_next_step_names_both_ways_to_start_it(a):
+    """The flow simulations of Nov 14: at the end of a step every tutor said "paste its prompt from the
+    homework page into this chat", though the page offers two ways to start a step (the prompt, pasted
+    into the open session, or a command for a new session)."""
+    tutor = flat(a.tutor)
+    assert ("When this step is complete, say in one line which step is next and how to start it, for "
+            "example: \"The next step is 1c. Start it from the homework page: paste its prompt into this chat, "
+            "or use its command for a new session.\"") in tutor
+    assert ("Then say in one line that 0b is next, and that they start it from the homework page: its "
+            "prompt, pasted into this chat, or its command for a new session.") in flat(a.step("0a").brief)
+
+
 def test_0d_explains_wikidata_but_the_why_is_the_students(a):
     brief = flat(a.step("0d").brief)
     for must in ("step's three questions in WRITEUP.md",
@@ -784,8 +796,10 @@ def test_the_tutor_text_is_shorter_than_before(a):
     The limit was 3,000 until the rule for going on to another step in the same session, and the
     sentence that the tool's result is not shown to the student (both Nov 11). It was 3,100 until
     the rule that Claude may write the code a student describes (Nov 11), which added 64 words. It
-    was 3,150 until step 1a became an outline that Claude translates (Nov 13), which added 37 words."""
-    assert len(a.tutor.split()) < 3200
+    was 3,150 until step 1a became an outline that Claude translates (Nov 13), which added 37 words.
+    It was 3,200 until the hand-off to the next step named both ways to start it, with an example
+    (Nov 14), which added 32 words."""
+    assert len(a.tutor.split()) < 3250
 
 
 def test_the_api_key_rules_are_kept(a):
