@@ -343,6 +343,17 @@ def test_3b_starts_with_token_counting(a):
             "agent for a job like this? Use your numbers from Part 2 and Part 3.") in page
 
 
+def test_3b_points_an_outline_student_to_the_outline(a):
+    """The flow simulations of Nov 14, run C: the tutor told a student whose loop came from their
+    outline "If you'd rather type it yourself, the Troubleshooting part of the page lists the same
+    changes", though that line is for a student who wrote the loop's Python by hand."""
+    brief = flat(a.step("3b").brief)
+    assert ("Point a student whose loop came from their outline to the outline, never to the page's "
+            "Troubleshooting line for Python written by hand.") in brief
+    page = flat((REPO / "instructions" / "part3.md").read_text(encoding="utf-8"))
+    assert "- You wrote your loop's Python yourself:" in page          # the line the brief means
+
+
 def test_the_old_cost_step_and_the_id_2c_are_gone():
     text = STEPS.read_text(encoding="utf-8")
     assert "Compare cost" not in text

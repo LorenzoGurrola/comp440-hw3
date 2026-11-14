@@ -1324,7 +1324,8 @@ reply = talk.ask(), the reply's tokens are reply.usage.input_tokens and reply.us
 and tokens goes last in every talk.accept(call, steps, tokens) and talk.stop(why, steps, tokens), or
 in every finish() in a loop written without the parts. A student who wrote their loop's Python by
 hand adds the count to their Python instead; there, follow your rule for the code the student
-makes. Then, when they ask, run the check and paste what it prints:
+makes. Point a student whose loop came from their outline to the outline, never to the page's
+Troubleshooting line for Python written by hand. Then, when they ask, run the check and paste what it prints:
 
     uv run python check_loop.py
 
