@@ -265,6 +265,15 @@ def test_1a_asks_for_the_plainest_loop():
     assert "eleven made-up cases" in page and "for each of five rules" in page
 
 
+def test_1a_shows_the_outline_style_with_an_example_of_another_shape():
+    """Nov 14: the number-guessing game (count the guesses; repeat: ask, stop if right, stop at 7) had
+    the plainest loop's own shape, line for line. The example shows the style with another shape."""
+    page = section_1a()
+    assert "this is an outline of grading a stack of quizzes, to show the style:" in page
+    assert "For each quiz in the stack:" in page
+    assert "number-guessing" not in page and "7 guesses" not in page
+
+
 def test_1a_says_what_the_page_gives_and_what_is_the_students():
     """The new 1a (Nov 13): the page names the files and the command, says the arrangement of the
     loop is the student's, that Claude translates it and adds nothing, and that the student changes

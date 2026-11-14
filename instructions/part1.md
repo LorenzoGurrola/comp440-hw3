@@ -54,15 +54,14 @@ step is meant to go.
 - Say every way the loop stops, and what it stops with: an answer, or no verdict.
 - Write in plain words. Claude translates each line into one or two lines of Python, with the parts in
   `loop_parts.py`, which do the mechanical work.
-- For example, this is an outline of a number-guessing game, to show the style:
+- For example, this is an outline of grading a stack of quizzes, to show the style:
 
   ```
-  Remember: the secret number, and how many guesses the player has made (none yet).
-  Repeat:
-      Ask the player for a guess, and count it.
-      If the guess is the secret number: say "right", and stop.
-      If the player has made 7 guesses: say what the number was, and stop.
-      Otherwise: say "higher" or "lower".
+  Remember: the total of the scores (none yet), and how many quizzes have been graded (none yet).
+  For each quiz in the stack:
+      If it has no name on it: put it aside, and go on to the next quiz.
+      Score its answers, add the score to the total, and count the quiz.
+  When the stack is done: say the average score (the total divided by the count), and stop.
   ```
 
 **Interpreting output:** Claude runs this command, or you run it yourself:
