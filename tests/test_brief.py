@@ -538,3 +538,18 @@ def test_each_page_opens_with_its_part_and_links_back(n):
     assert "Back to the [assignment page](../README.md)." in text
     before_first_step = text.split("\n## ", 1)[0]
     assert "Back to the [assignment page](../README.md)." in before_first_step
+
+
+def test_3b_says_why_a_continued_session_asks_before_each_edit():
+    """The flow simulations of Nov 14, run C: in a session continued from 3a, each of Claude's edits
+    to my_loop.py asked first. Only 3b's own settings let those edits through (an Edit rule stays
+    with its own step's new session), and its new-session command starts with those settings."""
+    import tomllib
+    page = one_line(sections((ROOT / "instructions/part3.md").read_text(encoding="utf-8"))["3b. Make one change"])
+    assert ("- Claude Code asks you to approve each change to `my_loop.py` or `instructions.md`. That happens in "
+            "a session continued from another step. Approve the change, or start a new session with the "
+            "command on this page, which does not ask.") in page
+    steps = {s["id"]: s for s in tomllib.loads((ROOT / "steps.toml").read_text(encoding="utf-8"))["step"]}
+    assert {"Edit(my_loop.py)", "Edit(instructions.md)"} <= set(steps["3b"]["allow"])
+    others = {i for i, s in steps.items() if i != "3b" and "Edit(instructions.md)" in s.get("allow", [])}
+    assert not others

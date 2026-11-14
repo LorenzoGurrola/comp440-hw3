@@ -103,6 +103,9 @@ give the same answer every time, so a difference of a few claims between the two
 - You wrote your loop's Python yourself: keep the count as `tokens = {"input": 0, "output": 0}`, add
   each reply's `.usage.input_tokens` and `.usage.output_tokens` to it, and pass `tokens` last in every
   `talk.accept(...)` and `talk.stop(...)` (or every `finish(...)`, in a loop without the parts).
+- Claude Code asks you to approve each change to `my_loop.py` or `instructions.md`. That happens in a
+  session continued from another step. Approve the change, or start a new session with the command on
+  this page, which does not ask.
 - The run stops partway. Run the same command again; it keeps every claim it already finished.
 - The run says its folder has saved results from an earlier version of your agent: you changed
   `instructions.md`, `agent.py`, `wiki.py` or your loop since it started. To start over with the agent
