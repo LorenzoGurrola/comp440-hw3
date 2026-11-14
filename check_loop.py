@@ -1,11 +1,11 @@
-"""Check the loop in my_loop.py against the six rules of step 1a.
+"""Check the loop in my_loop.py against the five rules of step 1a.
 
     uv run python check_loop.py
 
-It runs your loop on fifteen short made-up checks of one claim, with a
+It runs your loop on eleven short made-up checks of one claim, with a
 scripted stand-in for the model and for Wikipedia, so it needs no key and no
 network, costs nothing and takes a few seconds. It prints one line per rule: ok,
-or NOT YET and what happened. Under the six lines it states the rule behind the
+or NOT YET and what happened. Under the five lines it states the rule behind the
 first NOT YET line, in plain words. Then it shows what your loop printed (with
 print(), for example) during the made-up check behind that line, up to 40
 lines; nothing your loop prints is saved. The stand-in
@@ -23,7 +23,12 @@ There is no way to keep the reference loop instead: from step 1a on, the agent
 runs only on your own loop.
 
 A loop that passes finish() a token count (extra credit, step 3b) gets one more
-line, after the six, which checks that count. It must say ok too.
+line, after the five, which checks that count. It must say ok too.
+
+A loop may do more than the rules ask: check that an answer's quotes are in
+what the agent read and send back one that fails, or warn the model once
+before it stops at the limit, as loops written before November 14 do. Where
+such a loop and the plainest loop part ways, the made-up checks accept either.
 """
 
 import argparse
@@ -43,8 +48,8 @@ import agent
 import wiki
 
 MY_LOOP = Path(__file__).resolve().parent / "my_loop.py"
-RULES = ["Ask the model", "Run its lookups", "Send the results back", "Check the answer",
-         "Enforce the limit", "Stop when the model stops"]
+RULES = ["Ask the model", "Make its lookups", "Stop with the answer", "Stop at the limit",
+         "Count the lookups"]
 TIME_LIMIT = 2      # seconds your loop has for one made-up check
 AFTER_A_HANG = 0.5  # seconds for each later one, once a loop has not stopped
 MAX_LOOKUPS = 40    # far more lookups than any made-up check asks for
@@ -57,29 +62,24 @@ FAILED = "Not yet. Work on the first NOT YET line, then run this again."
 FELL_BACK = "Your loop passed the check earlier and does not pass now."
 NOT_PASSING_NOW = ("Your loop passed earlier and does not pass now, so no agent run starts until every "
                    "rule passes again.")
-# What each rule asks, in plain words. The page does not list the rules: under the six lines, the
+# What each rule asks, in plain words. The page does not list the rules: under the five lines, the
 # check prints the one behind the first NOT YET line, so that a student meets each rule when their
-# design breaks it. The numbers come from agent.py when the check runs.
+# design breaks it. The number comes from agent.py when the check runs.
 def rule_text(number):
     return [
         "The model remembers nothing between calls, so each time it is asked it must be sent "
         "everything that has happened so far: the claim, its own replies, and what came of each.",
-        "Whatever lookups a reply asks for, one or several, are all made while the limit allows, "
-        "and the agent keeps count of every lookup it makes.",
-        "The model is never asked again until it has been told, all at once, what came of "
-        "everything its last reply asked for.",
-        "An answer is not a lookup and is not counted as one. An answer that passes the evidence "
-        "check ends the run with its verdict. One that fails is never accepted: the model is told "
-        f"what was wrong and may answer again, and after {agent.MAX_REJECTED} failed answers the "
-        "agent gives up with no verdict.",
-        "The agent never makes more lookups than its limit (12 in a real run). In the first reply "
-        "that asks for more, every lookup past the limit is answered with a warning instead of "
-        "being made, so that the model can still answer. If a later reply asks for another "
-        "lookup, the agent gives up with no verdict.",
-        "A model that replies without asking for anything is reminded to answer; if it does the "
-        "same again straight away, the agent gives up with no verdict. It is reminded again if it "
-        "stalls again later. A model that refuses ends the run at once, with no verdict and no "
-        "reminder.",
+        "Whatever lookups a reply asks for, one or several, are all made, and the model is not "
+        "asked again until it has been told, all at once, what came of everything that reply "
+        "asked for.",
+        "An answer is not a lookup: it is not made and not counted. When the model gives an "
+        "answer, the agent stops with that answer: its verdict, its evidence and its explanation.",
+        f"Once the agent has made as many lookups as its limit ({agent.MAX_STEPS} in a real run), "
+        "it makes no more: if the model asks for more, the agent stops with no verdict. An answer "
+        "still ends the run with that answer. The lookups of a reply that came while the count "
+        "was below the limit are all made, so one reply can take the count past the limit.",
+        "The agent's count of lookups is the number of lookups it made, and its trace has an "
+        "entry for each one, with what it found.",
     ][number - 1]
 
 
@@ -146,9 +146,10 @@ QUOTES_NOTHING = "gave an answer with a quote that is in nothing it had read"
 SAYS_NOT = "gave an answer of doesn't say"
 NO_TOOL = "had text and no tool call"
 
-# Each made-up check: the model's replies, in order, and the limit of lookups. The first
-# three end with answers, so that a loop that handles answers stops, and its result shows
-# what rules 1 and 2 ask for; a last "doesn't say" is there in case an answer is sent back.
+# Each made-up check: the model's replies, in order, and the limit of lookups. Most end with an
+# answer, so that a loop that handles answers stops, and its result shows what the rules ask for;
+# a last "doesn't say" is there for a loop that sends an answer back or warns the model at the
+# limit, which the check also accepts.
 SCENARIOS = {
     "ask": ([reply("asked for a search", text("I will start with a search."),
                    search("Forrest Gump director")),
@@ -168,49 +169,44 @@ SCENARIOS = {
                  reply(SAYS_NOT, NOT_SAID)], PLENTY),
     "accept": ([reply("asked for a read", read("Forrest Gump")),
                 reply(QUOTES_GOOD, GOOD)], PLENTY),
-    "reject": ([reply("asked for a read", read("Forrest Gump")),
-                reply(QUOTES_NOTHING, MADE_UP),
-                reply(SAYS_NOT, NOT_SAID)], PLENTY),
-    # More answers than any MAX_REJECTED you might set in Part 3 (step 3b).
-    "reject_often": ([reply(QUOTES_NOTHING, MADE_UP)] * 12, PLENTY),
     "clean": ([reply("asked for a read", read("Robert Zemeckis")),
                reply("gave an answer with its evidence as one string and no explanation",
                      use("answer", {"verdict": "supported",
                                     "evidence": "He was born in Chicago, Illinois."}))],
               PLENTY),
+    # One reply with a lookup and an answer: the agent stops with the answer, with the lookup
+    # made or not.
+    "both": ([reply("asked for a read", read("Forrest Gump")),
+              reply("asked for a search and gave an answer that quotes the page it had read",
+                    search("Robert Zemeckis"), GOOD),
+              reply(SAYS_NOT, NOT_SAID)], PLENTY),
+    # An answer quoting what the agent never read: the plainest loop stops with it; a loop that
+    # checks quotes sends it back and stops with the next answer. Either passes.
+    "unread": ([reply("asked for a read", read("Forrest Gump")),
+                reply(QUOTES_NOTHING, MADE_UP),
+                reply(SAYS_NOT, NOT_SAID)], PLENTY),
+    # A reply that asks for nothing: the parts remind the model once, and the loop stops with the
+    # answer that follows (rule 3). Rule 1 looks at the requests, as the real Claude API would.
+    "nothing": ([reply(NO_TOOL, text("I think the claim is true.")),
+                 reply(SAYS_NOT, NOT_SAID)], PLENTY),
+    # The answer comes when the limit has been reached.
     "limit_answer": ([reply("asked for a search", search("Forrest Gump")),
                       reply("asked for a second search", search("Robert Zemeckis")),
-                      reply("asked for a third search", search("Zemeckis birthplace")),
                       reply(SAYS_NOT, NOT_SAID)], LIMIT),
+    # The model keeps asking. The plainest loop stops at the third reply; a loop that warns the
+    # model first stops at the fourth.
     "limit_again": ([reply("asked for a search", search("Forrest Gump")),
                      reply("asked for a second search", search("Robert Zemeckis")),
                      reply("asked for a third search", search("Zemeckis birthplace")),
                      reply("asked for a fourth search", search("Zemeckis Chicago")),
                      reply("asked for a fifth search", search("Zemeckis Illinois")),
                      reply("asked for a sixth search", search("Zemeckis early life"))], LIMIT),
-    "limit_pair": ([reply("asked for a search", search("Forrest Gump")),
-                    reply("asked for a second search", search("Robert Zemeckis")),
-                    reply("asked for a search and a read in one reply", search("Zemeckis Chicago"),
-                          read("Robert Zemeckis")),
-                    reply(SAYS_NOT, NOT_SAID)], LIMIT),
-    # The limit is crossed inside one reply: one lookup is left, and the reply asks for two.
+    # The limit is crossed inside one reply: one lookup is left, and the reply asks for two. The
+    # plainest loop makes both; a loop that warns makes one and warns about the other.
     "limit_cross": ([reply("asked for a search", search("Forrest Gump")),
                      reply("asked for a search and a read in one reply", search("Robert Zemeckis"),
                            read("Robert Zemeckis")),
                      reply(SAYS_NOT, NOT_SAID)], LIMIT),
-    "remind": ([reply(NO_TOOL, text("I think the claim is true.")),
-                reply(SAYS_NOT, NOT_SAID)], PLENTY),
-    "no_answer": ([reply(NO_TOOL, text("I think the claim is true.")),
-                   reply(NO_TOOL + " again", text("It is true.")),
-                   reply(NO_TOOL + " again", text("True."))], PLENTY),
-    # Two separate stalls: a reminder, a lookup, then a reply that asks for nothing again.
-    "remind_twice": ([reply("asked for nothing", text("I think the claim is true.")),
-                      reply("asked for a search", search("Forrest Gump")),
-                      reply("asked for nothing again", text("It is true.")),
-                      reply(SAYS_NOT, NOT_SAID)], PLENTY),
-    "refusal": ([reply("refused to check the claim", text("I can't help with that."),
-                       stop="refusal"),
-                 reply(SAYS_NOT, NOT_SAID)], PLENTY),
 }
 
 
@@ -333,16 +329,15 @@ def copy_value(value):
 
 
 def loop_variables(loop_file):
-    """steps, trace and read_so_far as run_agent() in my_loop.py has them while it
-    waits for the model, read (never changed) from run_agent()'s own frame, wherever in the
-    file the model was asked from. The check uses them only for what it cannot see from
-    outside: how far a loop that does not stop yet has got."""
+    """steps and trace as run_agent() in my_loop.py has them while it waits for the model, read
+    (never changed) from run_agent()'s own frame, wherever in the file the model was asked
+    from. The check uses them only for what it cannot see from outside: how far a loop that
+    does not stop yet has got."""
     frame = sys._getframe(1)
     while frame is not None:
         if frame.f_code.co_name == "run_agent" and frame.f_code.co_filename == loop_file:
             names = frame.f_locals
-            return {name: copy_value(names[name])
-                    for name in ("steps", "trace", "read_so_far") if name in names}
+            return {name: copy_value(names[name]) for name in ("steps", "trace") if name in names}
         frame = frame.f_back
     return {}
 
@@ -363,9 +358,8 @@ class ScriptedModel:
 
 
 class Run:
-    """Your loop on one made-up check: every request it sent the model, every lookup, the
-    read_so_far it gave answer_problem(), what it printed, what it returned, and how it
-    ended."""
+    """Your loop on one made-up check: every request it sent the model, every lookup, what it
+    printed, what it returned, and how it ended."""
 
     def __init__(self, key, run_agent, loop_file, seconds=TIME_LIMIT):
         self.script, self.max_steps = SCENARIOS[key]
@@ -375,7 +369,6 @@ class Run:
                                          for b in spec["blocks"])), None)
         self.loop_file = loop_file
         self.requests, self.states, self.lookups, self.lookups_at = [], [], [], []
-        self.checked = []       # read_so_far, each time the loop checked an answer
         self.result = self.error = self.line = None
         self.abandoned = False
 
@@ -613,7 +606,7 @@ def answer_entries(trace, call, result):
             and entry.get("input") in (call.input, agent.clean_answer(call.input))]
 
 
-# ---------- the six rules ----------
+# ---------- the five rules ----------
 
 def rule_1(runs):
     """Ask the model. Every request in every made-up check is looked at, as the real API
@@ -638,7 +631,7 @@ def reports_count(runs):
 def token_rule(runs):
     """Count the tokens, for a loop that passes finish() a count: in every made-up check, the
     count is what the model's replies used. (Only a loop that returns a result has a count to
-    look at, so there is no look inside run_agent() for the tokens, as rules 1 and 2 have.)"""
+    look at, so there is no look inside run_agent() for the tokens, as rule 5 has.)"""
     for other in runs.values():
         if other.finished():
             n = len(other.requests)
@@ -684,12 +677,21 @@ def request_problem(run, k, request, system):
     added = [t for t in messages[len(before):] if get(t, "role") == "assistant"]
     if len(added) > 1:
         raise NotYet(run, f"{sent} had that reply in the conversation {count(len(added))} times")
+    # After a reply that asked for nothing. (After one that asked for something, rule 2 says which
+    # result is missing.)
+    for later in messages[len(before) + 1:] if not run.calls(k - 1) else []:
+        said = get(later, "content")
+        if said is None or (isinstance(said, (str, list, tuple)) and len(said) == 0):
+            raise NotYet(run, f"{sent} had a turn with nothing in it after that reply, which the "
+                         "Claude API refuses")
 
 
 def rule_2(runs):
-    """Run its lookups. The rule gives no order, so none is required."""
+    """Make its lookups. In the made-up check for this rule, every lookup a reply asks for is
+    made, in any order, before the model is asked again, and in the next one the results are what
+    the lookups found; in every made-up check, every tool call has its result in the next turn,
+    as the real API requires."""
     run = runs["lookups"]
-    asked = []      # (reply number, name, input) of every lookup asked for before the answer
     for k in range(1, run.first_answer):
         left = list(run.made_for(k))
         made = len(left)
@@ -712,86 +714,6 @@ def rule_2(runs):
         if left:
             raise NotYet(run, f"{run.said(k)}, and your loop made {count(made, 'lookup')} for it "
                          "before asking the model again")
-        asked += [(k, call.name, call.input) for call in run.calls(k)]
-
-    if run.finished():          # what the loop returned shows steps and the trace
-        if run.result["steps"] != len(asked):
-            raise NotYet(run, f"the model asked for {count(len(asked), 'lookup')} before its "
-                         "answer, and when your loop stopped its count of lookups was "
-                         f"{short(run.result['steps'])}")
-        trace_problem(run, run.result["trace"], asked, "the trace your loop stopped with")
-    else:                       # a loop that does not stop yet: look inside it
-        for k in range(1, run.first_answer):
-            so_far = [lookup for lookup in asked if lookup[0] <= k]
-            steps = run.variable(k + 1, "steps")
-            if steps != len(so_far):
-                raise NotYet(run, f"after the model's {nth(k)} reply, your loop had made "
-                             f"{count(len(so_far), 'lookup')}, and its count of lookups was "
-                             f"{short(steps)} when it asked the model again")
-            trace_problem(run, run.variable(k + 1, "trace"), so_far,
-                          "the trace", " when your loop asked the model again")
-
-    if run.checked:             # what the loop gave answer_problem() shows read_so_far
-        read_problem(run, run.checked[0], asked, "when your loop checked the answer")
-    else:
-        for k in range(1, run.first_answer):
-            read_problem(run, run.variable(k + 1, "read_so_far"),
-                         [lookup for lookup in asked if lookup[0] <= k],
-                         "when your loop asked the model again")
-
-
-def lookup_name(name):
-    """"search", "read" or "wikidata lookup", as the sentences name a lookup."""
-    return "wikidata lookup" if name == "wikidata" else name
-
-
-def trace_problem(run, trace, asked, the_trace, when=""):
-    """Every lookup asked for has its entry in the trace, in any order."""
-    trace = trace if isinstance(trace, list) else []
-    entries = [e for e in trace if isinstance(e, dict) and e.get("tool") in LOOKUPS]
-    left = list(entries)
-    for j, name, args in asked:
-        want = {"tool": name, "input": args, "result": wikipedia(name, args)}
-        match = next((e for e in left if has_entry([e], want)), None)
-        if match is not None:
-            left.remove(match)
-            continue
-        same_tool = [e for e in left if e.get("tool") == name]
-        if same_tool:
-            raise NotYet(run, f"{run.said(j)}, and the entry for the {name} in {the_trace} did "
-                         f"not record that {name} and what it found{when}")
-        other = [e for e in trace if not (isinstance(e, dict) and e.get("tool") in
-                                          LOOKUPS + ("answer", "(reminder)"))]
-        if other:
-            raise NotYet(run, f"{run.said(j)}, and {the_trace} held {short(other[0])}, which "
-                         f"does not record a lookup and what it found{when}")
-        raise NotYet(run, f"{run.said(j)}, and {the_trace} had no entry for the {name}{when}")
-    if left:
-        raise NotYet(run, f"{the_trace} had entries for {count(len(entries), 'lookup')}{when}, "
-                     f"where your loop had made {count(len(asked))}")
-
-
-def read_problem(run, kept, asked, when):
-    """read_so_far holds what each read and wikidata lookup returned, and no search result."""
-    kept = kept if isinstance(kept, list) else []
-    for j, name, args in asked:
-        result = wikipedia(name, args)
-        if name == "search" and result in kept:
-            raise NotYet(run, f"{run.said(j)}, and what the search found was counted as read by "
-                         f"the agent {when}")
-        if name != "search" and result not in kept:
-            raise NotYet(run, f"{run.said(j)}, and what the {name} found was not counted as read "
-                         f"by the agent {when}")
-    reads = [wikipedia(name, args) for _, name, args in asked if name != "search"]
-    if not same_items(kept, reads):
-        raise NotYet(run, f"the agent had {count(len(kept), 'thing')} counted as read {when}, "
-                     f"where it had made {count(len(reads))} reads and wikidata lookups")
-
-
-def rule_3(runs):
-    """Send the results back. In the made-up check for this rule the results must be what the
-    lookups found; in every made-up check, every tool call must have its result in the next
-    turn, as the real API requires."""
     run = runs["results"]
     for k in range(1, run.first_answer):
         results_problem(run, k, run.request(k + 1), exact=True)
@@ -799,6 +721,11 @@ def rule_3(runs):
         for k in range(1, min(len(other.requests), len(other.replies) + 1)):
             if other.calls(k):
                 results_problem(other, k, other.requests[k])
+
+
+def lookup_name(name):
+    """"search", "read" or "wikidata lookup", as the sentences name a lookup."""
+    return "wikidata lookup" if name == "wikidata" else name
 
 
 def results_problem(run, k, request, exact=False):
@@ -846,288 +773,190 @@ def results_problem(run, k, request, exact=False):
                          "that reply did not make, as well as its own")
 
 
-def rule_4(runs):
-    """Check the answer. What counts as a problem is whatever answer_problem() in agent.py says
-    now, and the number of rejections is MAX_REJECTED as it is now, since step 3b lets you
-    change agent.py."""
-    def problem(call, page):
-        return agent.answer_problem(agent.clean_answer(call.input), [PAGES[page]])
-
-    def accepted(run, k, page, evidence, explanation):
-        call = run.calls(k)[0]
-        if problem(call, page) is not None:
-            return      # agent.py's evidence check now rejects this answer
+def rule_3(runs):
+    """Stop with the answer. An answer is not run as a lookup, and the run ends with it; after a
+    reply that asks for nothing, it ends with the answer that follows the reminder. For an answer
+    that quotes what the agent never read, a loop may instead send it back (a loop that checks
+    quotes) and stop with the next answer, or give up with no verdict once it has sent back as
+    many as MAX_REJECTED allows. A loop that stops with an error in any of these does not pass."""
+    def stopped_with(run, k, verdict, evidence, explanation, after=""):
+        call = next(c for c in run.calls(k) if c.name == "answer")
         if any(name == "answer" for name, _ in run.lookups):
-            raise NotYet(run, f"{run.said(k)}, and your loop ran it as a lookup")
-        if len(run.requests) > k:
-            back = sent_back(run.requests[k], call.id)
-            if isinstance(back, str) and back.startswith(agent.REJECTED):
-                raise NotYet(run, f"{run.said(k)}, and your loop sent it back as rejected: "
-                             f"{short(back, 160)}")
-        result = run.returned_after(k, "asked the model again instead of stopping")
-        run.expect(k, result, "supported", evidence, explanation)
+            raise NotYet(run, f"{run.said(k)}{after}, and your loop ran the answer as a lookup")
+        result = run.returned_after(k, "asked the model again instead of stopping", after)
+        run.expect(k, result, verdict, evidence, explanation, after=after)
         if not answer_entries(result["trace"], call, agent.ACCEPTED):
-            raise NotYet(run, f"{run.said(k)}, and the trace your loop stopped with does not "
-                         "record that answer as accepted")
+            raise NotYet(run, f"{run.said(k)}{after}, and the trace your loop stopped with does "
+                         "not record that answer as accepted")
 
-    accepted(runs["accept"], 2, "Forrest Gump", ["directed by Robert Zemeckis"],
-             "The page names him as the director.")
+    director = ["directed by Robert Zemeckis"]
+    stopped_with(runs["accept"], 2, "supported", director, "The page names him as the director.")
+    stopped_with(runs["clean"], 2, "supported", ["He was born in Chicago, Illinois."], "")
+    stopped_with(runs["both"], 2, "supported", director, "The page names him as the director.")
 
-    n = max(agent.MAX_REJECTED, 1)
-    run = runs["reject"]
-    call = run.calls(2)[0]
-    wrong = problem(call, "Forrest Gump")
-    if wrong is not None and n > 1:
-        if len(run.requests) == 2 and run.ended == "returned":
-            raise NotYet(run, f"{run.said(2)}, and your loop {run.returned()} instead of sending "
-                         "the answer back")
-        back = sent_back(run.request(3), call.id)
-        if back is MISSING:
-            raise NotYet(run, f"{run.said(2)}, and the next request your loop sent held no "
-                         "result for that answer")
-        if back != agent.REJECTED + wrong:
-            raise NotYet(run, f"{run.said(2)}, and your loop sent back {short(back)} rather than "
-                         "what the evidence check said was wrong")
-        result = run.returned_after(3, "asked the model again instead of stopping")
-        run.expect(3, result, "doesn't say", [], NOT_SAID_WHY)
-        if not answer_entries(result["trace"], call, agent.REJECTED + wrong):
-            raise NotYet(run, f"{run.said(2)}, and the trace your loop stopped with has no entry "
-                         "for it with what was sent back")
+    # A reply that asks for nothing: the parts remind the model, and the loop stops with the answer
+    # that follows. A loop that stops at once with no verdict passes too.
+    run = runs["nothing"]
+    if not (len(run.requests) == 1 and run.finished() and run.result["verdict"] is None):
+        stopped_with(run, 2, "doesn't say", [], NOT_SAID_WHY,
+                     after=" after one that had text and no tool call")
 
-    run = runs["reject_often"]
-    if wrong is not None:
-        if len(run.requests) > n:
-            answers = "reply was an answer" if n == 1 else f"{count(n)} replies were answers"
-            raise NotYet(run, f"the model's first {answers} with a quote that is in nothing it "
-                         f"had read, and your loop asked the model again after the {nth(n)} was "
-                         "rejected")
-        result = run.returned_after(n, "asked the model again")
-        run.expect(n, result, None, [], agent.REJECTED_TOO_OFTEN.format(n=n),
-                   "")
-        # The answers are all alike, so count the entries: one for each rejected answer, the
-        # last one included.
-        recorded = answer_entries(result["trace"], run.calls(1)[0], agent.REJECTED + wrong)
-        if len(recorded) < n:
-            raise NotYet(run, f"the model's answer was rejected {count(n, 'time')}, and the "
-                         f"trace your loop stopped with has an entry for {count(len(recorded))} "
-                         "of them")
-
-    accepted(runs["clean"], 2, "Robert Zemeckis", ["He was born in Chicago, Illinois."], "")
-
-
-def rule_5(runs):
-    """Enforce the limit. Each sentence gives the numbers that tell what the loop did: how many
-    lookups it had run (as the made-up Wikipedia saw them), max_steps, and when it first sent
-    back OUT_OF_STEPS."""
-    for key in ("limit_answer", "limit_again"):
-        run = runs[key]
-        m = run.max_steps
-        want = agent.OUT_OF_STEPS.format(n=m)
-        for k in range(1, m + 1):       # lookups the limit leaves room for
-            if not any(name in LOOKUPS for name, _ in run.made_for(k)):
-                back = sent_back(run.request(k + 1), run.calls(k)[0].id)
-                back = ("the warning" if back == want else
-                        "nothing" if back is MISSING else short(back))
-                raise NotYet(run, f"{run.said(k)}, and your loop sent back {back} instead of "
-                             f"making it, though it had made only {ran(run, k)} and the limit is "
-                             f"{m}")
-        over = m + 1    # the reply that asks for one lookup more than the limit
-        call = run.calls(over)[0]
-        said = f"{run.said(over)} with the limit of {m} lookups reached, and"
-        run.request(over)
-        if len(run.requests) == over and run.ended == "returned":
-            numbers = (f"it had made {ran(run, over)}, the limit, and this was the first time the "
-                       "model asked for one more")
-            raise NotYet(run, f"{said} your loop {run.returned()} instead of sending back the "
-                         f"warning: {numbers}")
-        if any(name in LOOKUPS for name, _ in run.made_for(over)):
-            story = f"; {first_warning(runs['limit_again'])}" if key == "limit_answer" else ""
-            raise NotYet(run, f"{said} your loop made it: it had made {ran(run, over)} before "
-                         f"that one{story}")
-        back = sent_back(run.request(over + 1), call.id)
-        if back is MISSING:
-            raise NotYet(run, f"{said} the next request your loop sent held no result for that "
-                         "search")
-        if back != want:
-            raise NotYet(run, f"{said} your loop sent back {short(back)} rather than the warning "
-                         f"({want!r})")
-        last, after = over + 1, " after the warning had been sent back"
-        if any(name in LOOKUPS for name, _ in run.lookups[run.lookups_at[over]:]):
-            raise NotYet(run, f"{run.said(last)}{after}, and your loop made it: it had made "
-                         f"{ran(run, last)} before that one, and the limit is {m}")
-        if len(run.requests) > last and run.calls(last)[0].name in LOOKUPS:
-            again = sent_back(run.requests[last], run.calls(last)[0].id)
-            again = ("the warning again" if again == want else
-                     "nothing" if again is MISSING else short(again))
-            raise NotYet(run, f"{run.said(last)}{after}, and your loop asked the model again "
-                         f"instead of stopping: it had made {ran(run, last)}, the limit, and for "
-                         f"that search it sent back {again}")
-        result = run.returned_after(last, "asked the model again instead of stopping", after)
-        if key == "limit_answer":
-            run.expect(last, result, "doesn't say", [], NOT_SAID_WHY, after=after)
-        else:
-            run.expect(last, result, None, [], agent.RAN_OUT, after=after)
-        if result["steps"] != m:
-            raise NotYet(run, f"{run.said(last)}{after}, and when your loop stopped its count of "
-                         f"lookups was {short(result['steps'])}, where it had made "
-                         f"{ran(run, last)}")
-        if not has_entry(result["trace"], {"tool": call.name, "input": call.input,
-                                           "result": want}):
-            raise NotYet(run, f"{said} the trace your loop stopped with has no entry for it with "
-                         "what was sent back")
-    pair_problem(runs["limit_pair"])
-    cross_problem(runs["limit_cross"])
-
-
-def cross_problem(run):
-    """One lookup is left, and one reply asks for two: one of them runs, the other gets the
-    warning and is not run, and the loop goes on, so the model can still answer."""
-    m = run.max_steps
-    want = agent.OUT_OF_STEPS.format(n=m)
-    run.made_for(1)
-    said = (f"{run.said(2)}, when your loop had made {ran(run, 2)} and the limit is {m}, so one "
-            "more lookup was allowed, and")
-    if len(run.requests) == 2 and run.ended == "returned":
-        raise NotYet(run, f"{said} your loop {run.returned()} instead of making one of them and "
-                     "sending back the warning for the other")
-    made = [name for name, _ in run.made_for(2) if name in LOOKUPS]
-    if len(made) > 1:
-        raise NotYet(run, f"{said} your loop made both, the second as lookup number "
-                     f"{len(made) + int(ran(run, 2).split()[0])}")
-    if not made:
-        raise NotYet(run, f"{said} your loop made neither")
-    refused = next(call for call in run.calls(2) if call.name != made[0])
-    back = sent_back(run.request(3), refused.id)
-    if back != want:
-        back = "nothing" if back is MISSING else short(back)
-        raise NotYet(run, f"{said} your loop made the {lookup_name(made[0])} and sent back "
-                     f"{back} for the {lookup_name(refused.name)} rather than the warning")
-    result = run.returned_after(3, "asked the model again instead of stopping",
-                                " after the warning had been sent back")
-    run.expect(3, result, "doesn't say", [], NOT_SAID_WHY,
-               after=" after the warning had been sent back")
-    if result["steps"] != m:
-        raise NotYet(run, f"{run.said(3)}, and when your loop stopped its count of lookups was "
-                     f"{short(result['steps'])}, where it had made {count(m, 'lookup')}")
-    if not has_entry(result["trace"], {"tool": refused.name, "input": refused.input,
-                                       "result": want}):
-        raise NotYet(run, f"{said} the trace your loop stopped with has no entry for the "
-                     f"{lookup_name(refused.name)} with what was sent back")
-
-
-def pair_problem(run):
-    """The limit is reached, then one reply asks for two lookups: each of them gets
-    OUT_OF_STEPS, neither is run, and the loop goes on, so the model can still answer."""
-    m = run.max_steps
-    want = agent.OUT_OF_STEPS.format(n=m)
-    over = m + 1
-    calls = run.calls(over)
-    said = f"{run.said(over)}, with the limit of {m} lookups reached, and"
-    for k in range(1, over):
-        run.made_for(k)     # the loop got as far as the reply with two lookups
-    if len(run.requests) == over:
-        if run.ended == "returned":
-            why = (f", with the explanation {short(run.result['explanation'])},"
-                   if run.finished() else "")
-            raise NotYet(run, f"{said} your loop {run.returned()}{why} instead of sending back "
-                         "the warning for each of the two")
-        raise NotYet(run, run.ending())
-    if any(name in LOOKUPS for name, _ in run.made_for(over)):
-        names = " and the ".join(lookup_name(name) for name, _ in run.made_for(over)
-                                 if name in LOOKUPS)
-        raise NotYet(run, f"{said} your loop made the {names}")
-    for call in calls:
-        back = sent_back(run.request(over + 1), call.id)
-        if back != want:
-            back = "nothing" if back is MISSING else short(back)
-            raise NotYet(run, f"{said} for the {lookup_name(call.name)} your loop sent back "
-                         f"{back}, where each of the two gets the warning")
-    result = run.returned_after(over + 1, "asked the model again instead of stopping",
-                                " after the warning had been sent back for both lookups")
-    run.expect(over + 1, result, "doesn't say", [], NOT_SAID_WHY,
-               after=" after the warning had been sent back for both lookups")
-    for call in calls:
-        if not has_entry(result["trace"], {"tool": call.name, "input": call.input,
-                                           "result": want}):
-            raise NotYet(run, f"{said} the trace your loop stopped with has no entry for the "
-                         f"{lookup_name(call.name)} with what was sent back")
+    run = runs["unread"]
+    if any(name == "answer" for name, _ in run.lookups):
+        raise NotYet(run, f"{run.said(2)}, and your loop ran the answer as a lookup")
+    gave_up = agent.REJECTED_TOO_OFTEN.split("{n}")[0]
+    if len(run.requests) <= 2:
+        if (run.finished() and run.result["verdict"] is None
+                and str(run.result["explanation"]).startswith(gave_up)):
+            return      # a loop that checks quotes, with MAX_REJECTED set to 1
+        stopped_with(run, 2, "supported", ["Zemeckis was born in Ohio."], "He was born in Ohio.")
+    else:               # a loop that checks quotes sent it back
+        stopped_with(run, 3, "doesn't say", [], NOT_SAID_WHY,
+                     after=" after your loop had sent the answer before it back")
 
 
 def ran(run, k):
-    """"2 lookups": how many lookups the loop had run before it handled the model's kth reply,
+    """"2 lookups": how many lookups the loop had made before it handled the model's kth reply,
     as the made-up Wikipedia saw them."""
     n = sum(name in LOOKUPS for name, _ in run.lookups[:run.lookups_at[k - 1]])
     return f"{n} lookup{'' if n == 1 else 's'}"
 
 
-def first_warning(run):
-    """When the loop first sent back OUT_OF_STEPS in the made-up check whose model asks for
-    one search after another, or that it never did."""
+def made_after(run, k):
+    """The lookups the loop made after the model's kth reply: up to its next request, or to the
+    end of the run if there was none."""
+    end = run.lookups_at[k] if len(run.lookups_at) > k else len(run.lookups)
+    return [(name, args) for name, args in run.lookups[run.lookups_at[k - 1]:end]
+            if name in LOOKUPS]
+
+
+def made_up_to_the_limit(run, m):
+    """In a made-up check whose first m replies each ask for one search, each search is made:
+    the limit leaves room for all of them."""
+    for k in range(1, m + 1):
+        run.request(k)
+        if len(run.requests) == k and run.ended == "returned":
+            if made_after(run, k):
+                raise NotYet(run, f"{run.said(k)}, and your loop made it and then "
+                             f"{run.returned()} without asking the model again, though the model "
+                             f"had not asked for more than the limit of {m} lookups")
+            raise NotYet(run, f"{run.said(k)}, and your loop {run.returned()} instead of making "
+                         f"it, though it had made only {ran(run, k)} and the limit is {m}")
+        if not made_after(run, k):
+            back = sent_back(run.request(k + 1), run.calls(k)[0].id)
+            back = "nothing" if back is MISSING else short(back)
+            raise NotYet(run, f"{run.said(k)}, and your loop sent back {back} instead of making "
+                         f"it, though it had made only {ran(run, k)} and the limit is {m}")
+
+
+def rule_4(runs):
+    """Stop at the limit. Each sentence gives the numbers that tell what the loop did: how many
+    lookups it had made (as the made-up Wikipedia saw them) and max_steps. A loop that warns the
+    model once before it stops (sending back something other than the lookup's result) passes
+    too."""
+    run = runs["limit_answer"]
     m = run.max_steps
-    asked = len(run.script)
-    for k in range(1, min(len(run.requests) - 1, asked) + 1):
-        if sent_back(run.requests[k], run.calls(k)[0].id) == agent.OUT_OF_STEPS.format(n=m):
-            when = ("which it also made" if any(name in LOOKUPS for name, _ in run.made_for(k))
-                    else f"when it had made {ran(run, k)}")
-            return (f"in another made-up check the model asked for one search in each of "
-                    f"{asked} replies, and your loop first sent back the warning for the {nth(k)} "
-                    f"search, {when}")
-    total = sum(name in LOOKUPS for name, _ in run.lookups)
-    which = f"all {asked}" if total == asked else f"{total} of them"
-    return (f"in another made-up check the model asked for one search in each of {asked} "
-            f"replies, and your loop made {which} and never sent back the warning")
+    made_up_to_the_limit(run, m)
+    after = f", when your loop had made {ran(run, m + 1)}, the limit"
+    result = run.returned_after(m + 1, "asked the model again instead of stopping", after)
+    run.expect(m + 1, result, "doesn't say", [], NOT_SAID_WHY, after=after)
+
+    run = runs["limit_again"]
+    m = run.max_steps
+    made_up_to_the_limit(run, m)
+    over = m + 1        # the first reply that asks for a lookup with the limit reached
+    run.request(over)
+    reached = f" with the limit of {m} lookups reached"
+    if made_after(run, over):
+        raise NotYet(run, f"{run.said(over)}{reached}, and your loop made it: it had made "
+                     f"{ran(run, over)} before that one")
+    last, after = over, reached
+    if len(run.requests) > over:     # it sent something back for that search: a warning
+        last = over + 1
+        after = f" after your loop had sent back a result for the {nth(over)} search without making it"
+        if made_after(run, last):
+            raise NotYet(run, f"{run.said(last)}{after}, and your loop made it: it had made "
+                         f"{ran(run, last)} before that one, and the limit is {m}")
+        if len(run.requests) > last:
+            raise NotYet(run, f"{run.said(last)}{after}, and your loop asked the model again "
+                         f"instead of stopping: it had made {ran(run, last)}, the limit")
+    result = run.returned_after(last, "asked the model again instead of stopping", after)
+    run.expect(last, result, None, [], agent.RAN_OUT, after=after)
+
+    run = runs["limit_cross"]
+    m = run.max_steps
+    run.made_for(1)
+    said = (f"{run.said(2)}, when your loop had made {ran(run, 2)} and the limit is {m}, so one "
+            "more lookup was allowed, and")
+    made = made_after(run, 2)
+    if not made:
+        if len(run.requests) == 2 and run.ended == "returned":
+            raise NotYet(run, f"{said} your loop {run.returned()} instead of making them")
+        raise NotYet(run, f"{said} your loop made neither")
+    if len(run.requests) == 2 and run.ended == "returned":
+        raise NotYet(run, f"{said} your loop made {count(len(made))} of them and "
+                     f"{run.returned()} instead of asking the model again")
+    result = run.returned_after(3, "asked the model again instead of stopping")
+    run.expect(3, result, "doesn't say", [], NOT_SAID_WHY)
 
 
-def rule_6(runs):
-    """Stop when the model stops."""
-    run = runs["remind"]
-    if len(run.requests) == 1 and run.ended == "returned":
-        raise NotYet(run, f"{run.said(1)}, and your loop {run.returned()} instead of reminding "
-                     "the model to answer")
-    tail = after_reply(run.request(2))
-    reminders = [t for t in tail if same_text(get(t, "content"), agent.REMINDER)]
-    if not reminders:
-        raise NotYet(run, f"{run.said(1)}, and your loop asked the model again without sending "
-                     f"it the reminder ({agent.REMINDER!r})")
-    if len(tail) > 1:
-        others = [t for t in tail if t not in reminders]
-        what = ("an empty turn of results" if others and get(others[0], "content") == [] else
-                f"{count(len(others))} other turns")
-        raise NotYet(run, f"{run.said(1)}, and your loop sent the model the reminder and also "
-                     f"{what}, where the reminder is all it is sent")
-    result = run.returned_after(2, "asked the model again instead of stopping")
-    run.expect(2, result, "doesn't say", [], NOT_SAID_WHY)
-    if not has_entry(result["trace"], {"tool": "(reminder)", "input": {},
-                                       "result": agent.REMINDED}):
-        raise NotYet(run, f"{run.said(1)}, and the trace your loop stopped with does not record "
-                     "the reminder")
+def trace_problem(run, trace, asked, the_trace, when=""):
+    """Every lookup asked for has its entry in the trace, in any order."""
+    trace = trace if isinstance(trace, list) else []
+    entries = [e for e in trace if isinstance(e, dict) and e.get("tool") in LOOKUPS]
+    left = list(entries)
+    for j, name, args in asked:
+        want = {"tool": name, "input": args, "result": wikipedia(name, args)}
+        match = next((e for e in left if has_entry([e], want)), None)
+        if match is not None:
+            left.remove(match)
+            continue
+        same_tool = [e for e in left if e.get("tool") == name]
+        if same_tool:
+            raise NotYet(run, f"{run.said(j)}, and the entry for the {name} in {the_trace} did "
+                         f"not record that {name} and what it found{when}")
+        other = [e for e in trace if not (isinstance(e, dict) and e.get("tool") in
+                                          LOOKUPS + ("answer", "(reminder)", "(refusal)"))]
+        if other:
+            raise NotYet(run, f"{run.said(j)}, and {the_trace} held {short(other[0])}, which "
+                         f"does not record a lookup and what it found{when}")
+        raise NotYet(run, f"{run.said(j)}, and {the_trace} had no entry for the {name}{when}")
+    if left:
+        raise NotYet(run, f"{the_trace} had entries for {count(len(entries), 'lookup')}{when}, "
+                     f"where your loop had made {count(len(asked))}")
 
-    run = runs["remind_twice"]
-    story = ("the model's first reply asked for nothing and your loop reminded it, its second "
-             "reply asked for a search, and its third reply asked for nothing again")
-    run.request(2)
-    if len(run.requests) == 3 and run.ended == "returned":
-        raise NotYet(run, f"{story}; your loop {run.returned()} there instead of reminding the "
-                     "model again")
-    if not any(same_text(get(t, "content"), agent.REMINDER) for t in after_reply(run.request(4))):
-        raise NotYet(run, f"{story}; your loop asked the model again without sending it the "
-                     "reminder")
-    result = run.returned_after(4, "asked the model again instead of stopping")
-    run.expect(4, result, "doesn't say", [], NOT_SAID_WHY)
-    reminders = [e for e in result["trace"]
-                 if isinstance(e, dict) and e.get("tool") == "(reminder)"]
-    if len(reminders) != 2:
-        raise NotYet(run, f"{story}; the trace your loop stopped with has "
-                     f"{count(len(reminders))} reminder "
-                     f"{'entry' if len(reminders) == 1 else 'entries'} rather than two")
 
-    run = runs["no_answer"]
-    result = run.returned_after(2, "asked the model a third time instead of stopping")
-    run.expect(2, result, None, [], agent.NO_ANSWER)
-
-    run = runs["refusal"]
-    result = run.returned_after(1, "asked the model again instead of stopping")
-    run.expect(1, result, None, [], agent.DECLINED)
+def rule_5(runs):
+    """Count the lookups. In the made-up check for this rule, the count and the trace are looked
+    at when the loop stops, or, for a loop that does not stop yet, inside run_agent() each time it
+    asks the model again; in every made-up check, the count it stops with is the number of lookups
+    it made."""
+    run = runs["lookups"]
+    asked = [(k, call.name, call.input) for k in range(1, run.first_answer) for call in run.calls(k)]
+    if run.finished():          # what the loop returned shows steps and the trace
+        if run.result["steps"] != len(asked):
+            raise NotYet(run, f"the model asked for {count(len(asked), 'lookup')} before its "
+                         "answer, and when your loop stopped its count of lookups was "
+                         f"{short(run.result['steps'])}")
+        trace_problem(run, run.result["trace"], asked, "the trace your loop stopped with")
+    else:                       # a loop that does not stop yet: look inside it
+        for k in range(1, run.first_answer):
+            so_far = [lookup for lookup in asked if lookup[0] <= k]
+            steps = run.variable(k + 1, "steps")
+            if steps != len(so_far):
+                raise NotYet(run, f"after the model's {nth(k)} reply, your loop had made "
+                             f"{count(len(so_far), 'lookup')}, and its count of lookups was "
+                             f"{short(steps)} when it asked the model again")
+            trace_problem(run, run.variable(k + 1, "trace"), so_far,
+                          "the trace", " when your loop asked the model again")
+    for other in runs.values():
+        if other.finished():
+            made = sum(name in LOOKUPS for name, _ in other.lookups)
+            if other.result["steps"] != made:
+                n = len(other.requests)
+                raise NotYet(other, f"{other.said(n)}, and when your loop stopped its count of "
+                             f"lookups was {short(other.result['steps'])}, where it had made "
+                             f"{count(made, 'lookup')}")
 
 
 # ---------- putting it together ----------
@@ -1149,29 +978,6 @@ def offline():
         os.environ.update(keys)
         for name, function in real.items():
             setattr(wiki, name, function)
-
-
-@contextlib.contextmanager
-def watching_answer_checks(module):
-    """Note the read_so_far the loop gives answer_problem() each time it checks an answer,
-    so that rule 2 can see it without looking inside the loop."""
-    real = agent.answer_problem
-
-    def answer_problem(answer, read_so_far):
-        run = getattr(CURRENT, "run", None)
-        if run is not None:
-            run.checked.append(copy_value(read_so_far))
-        return real(answer, read_so_far)
-    names = [name for name, value in vars(module).items() if value is real]
-    agent.answer_problem = answer_problem
-    for name in names:
-        setattr(module, name, answer_problem)
-    try:
-        yield
-    finally:
-        agent.answer_problem = real
-        for name in names:
-            setattr(module, name, real)
 
 
 def load(path):
@@ -1208,13 +1014,12 @@ def examine(path=None):
         if not callable(run_agent):
             return [("my_loop.py has no function called run_agent", "")] * len(RULES)
         runs, seconds = {}, TIME_LIMIT
-        with watching_answer_checks(module):
-            for key in SCENARIOS:
-                runs[key] = Run(key, run_agent, loop_file, seconds)
-                if runs[key].ended == "did not stop":
-                    seconds = AFTER_A_HANG   # so a loop that never stops is not waited for 12 times
+        for key in SCENARIOS:
+            runs[key] = Run(key, run_agent, loop_file, seconds)
+            if runs[key].ended == "did not stop":
+                seconds = AFTER_A_HANG   # so a loop that never stops is not waited for 11 times
     found = []
-    rules = [rule_1, rule_2, rule_3, rule_4, rule_5, rule_6]
+    rules = [rule_1, rule_2, rule_3, rule_4, rule_5]
     if reports_count(runs):
         rules.append(token_rule)
     for rule in rules:

@@ -2,29 +2,44 @@
 
 Each part does one mechanical job: the exact call to the Claude API, the shape
 of what is sent back for a tool call, the trace entries (every lookup, every
-answer checked, every reminder), what finish() is given.
+answer, every reminder), what finish() is given.
 Your loop in my_loop.py decides when each part is used, and in what order. That
 order, and what the loop counts and remembers, is the agent's logic, and it is
 what you write.
 
     talk = Conversation(claim, client, system, messages, trace, read_so_far, lookup)
-    reply = talk.ask()            # the model's next reply
-    reply.refused                 # True if the model refused to check the claim
-    reply.calls                   # the tool calls the reply asks for (empty if none)
+    reply = talk.ask()            # the model's next step
+    reply.answer                  # the answer it gave, or None if it gave none
+    reply.lookups                 # the lookups it asked for (empty if none)
+    reply.calls                   # every tool call in the reply, lookups and answer alike
     reply.usage                   # the tokens it used: .input_tokens, .output_tokens
     call.is_answer, call.is_lookup, call.name
-    talk.run(call)                # run a lookup; returns what it found
-    talk.problem_with(call)       # the evidence check on an answer: what to send back, or None
+    talk.run(call)                # make a lookup; returns what it found
     talk.give(call, result)       # the result the model will be sent for this call
     talk.send_results()           # send the model every result given since its last reply
-    talk.remind()                 # send the model the reminder to answer
-    talk.accept(call, steps)      # what the loop returns for an accepted answer
+    talk.accept(call, steps)      # what the loop returns for an answer
     talk.stop(why, steps)         # what the loop returns with no verdict
                                   # (both take a token count last, once the loop keeps one: 3b)
+
+ask() always gives back a next step. If a reply asks for nothing, ask() sends
+the model a reminder to answer and asks once more. If the model still asks for
+nothing, or if it refuses to check the claim, ask() gives back an answer with
+no verdict, which talk.accept() turns into a stop with no verdict. The trace
+records the reminder and the refusal.
+
+For a loop that does more than this (a change in step 3b, for example):
+
+    talk.problem_with(call)       # check an answer's quotes: None if each one is in
+                                  # something the agent read, or else what to send back
+    talk.remind()                 # send the model the reminder to answer
+    reply.refused                 # True if the model refused to check the claim
 """
 
+from types import SimpleNamespace
+
 import agent
-from agent import ACCEPTED, MODEL, REJECTED, REMINDED, REMINDER, TOOLS, clean_answer, finish
+from agent import (ACCEPTED, DECLINED, MODEL, NO_ANSWER, REJECTED, REMINDED, REMINDER, TOOLS,
+                   clean_answer, finish)
 
 
 class Call:
@@ -36,17 +51,36 @@ class Call:
         self.id = block.id              # marks the result that answers this call
         self.is_answer = block.name == "answer"
         self.is_lookup = not self.is_answer
+        # Set only on the answer ask() gives back for a model that refused or would not take a
+        # step: why there is no verdict (DECLINED or NO_ANSWER in agent.py).
+        self.why = None
+
+
+def no_verdict(why):
+    """The answer with no verdict that ask() gives back, with why there is none."""
+    call = Call(SimpleNamespace(name="answer", input={}, id=None))
+    call.why = why
+    return call
 
 
 class Reply:
-    """One reply from the model."""
+    """One reply from the model: its next step."""
 
-    def __init__(self, response):
+    def __init__(self, response, usage=None, why=None):
         self.refused = response.stop_reason == "refusal"
         self.calls = [Call(block) for block in response.content if block.type == "tool_use"]
+        if why is not None:             # a refusal, or nothing asked for twice running
+            self.calls = [no_verdict(why)]
+        self.lookups = [call for call in self.calls if call.is_lookup]
+        self.answer = next((call for call in self.calls if call.is_answer), None)
         # The tokens this reply used, as the Claude API reports them: .usage.input_tokens and
-        # .usage.output_tokens. Nothing here counts them: that is step 3b's first task.
-        self.usage = response.usage
+        # .usage.output_tokens (both of ask()'s calls to the model, when it asked twice). Nothing
+        # here counts them: that is step 3b's first task.
+        self.usage = usage or response.usage
+
+
+def asks_for_nothing(response):
+    return not any(block.type == "tool_use" for block in response.content)
 
 
 class Conversation:
@@ -57,27 +91,50 @@ class Conversation:
         self.messages, self.trace, self.read_so_far = messages, trace, read_so_far
         self.results = []               # results given since the model's last reply, not sent yet
 
-    def ask(self):
+    def call_model(self):
         """Send the model the system text, the tools and the whole conversation so far. Add its
-        reply to the conversation, and return the reply."""
+        reply to the conversation, and return the reply as the Claude API gives it."""
         response = self.client.messages.create(model=MODEL, max_tokens=16000, system=self.system,
                                                tools=TOOLS, messages=self.messages)
         self.messages.append({"role": "assistant", "content": response.content})
-        return Reply(response)
+        return response
+
+    def ask(self):
+        """Ask the model for its next step, sending it the whole conversation so far, and return
+        its reply. A reply that asks for nothing gets the reminder to answer and one more ask; a
+        reply that still asks for nothing, or a refusal, comes back as an answer with no verdict."""
+        reminded = bool(self.messages) and self.messages[-1] == {"role": "user", "content": REMINDER}
+        response = self.call_model()
+        usage = response.usage
+        if response.stop_reason != "refusal" and asks_for_nothing(response) and not reminded:
+            self.remind()
+            again = self.call_model()
+            usage = SimpleNamespace(input_tokens=usage.input_tokens + again.usage.input_tokens,
+                                    output_tokens=usage.output_tokens + again.usage.output_tokens)
+            response = again
+        if response.stop_reason == "refusal":
+            self.trace.append({"tool": "(refusal)", "input": {}, "result": DECLINED})
+            return Reply(response, usage, why=DECLINED)
+        if asks_for_nothing(response):
+            return Reply(response, usage, why=NO_ANSWER)
+        return Reply(response, usage)
 
     def run(self, call):
-        """Run one lookup and return what it found. What read and wikidata find counts as read
-        by the agent, so the evidence check can find quotes in it; what search finds does not."""
+        """Make one lookup and return what it found. What read and wikidata find counts as read
+        by the agent, so a check of the quotes can find them in it; what search finds does not."""
         found = self.lookup(call.name, call.input)
         if call.name != "search":
             self.read_so_far.append(found)
         return found
 
     def problem_with(self, call):
-        """The evidence check on an answer: None if it passes, or else the sentence to send back
-        about its problem, which starts "Answer rejected.". An answer with a problem is recorded
-        in the trace here, when it is checked, so the trace is complete even if the loop stops
-        before it gives the answer its result. (An answer that passes is recorded by accept().)"""
+        """A check of an answer's quotes, which the agent does only if its loop asks for it: None
+        if every quote is in something the agent read, or else the sentence to send back about its
+        problem, which starts "Answer rejected.". An answer with a problem is recorded in the trace
+        here, when it is checked, so the trace is complete even if the loop stops before it gives
+        the answer its result. (An answer that passes is recorded by accept().)"""
+        if call.why is not None:        # ask()'s answer with no verdict: nothing to check
+            return None
         problem = agent.answer_problem(clean_answer(call.input), self.read_so_far)
         if problem is None:
             return None
@@ -86,7 +143,7 @@ class Conversation:
 
     def give(self, call, result):
         """Set the result the model will be sent for this call. A lookup's result is recorded in
-        the trace here; an answer's was recorded when it was checked."""
+        the trace here; an answer's is recorded when it is checked or accepted."""
         if not call.is_answer:
             self.trace.append({"tool": call.name, "input": call.input, "result": result})
         self.results.append({"type": "tool_result", "tool_use_id": call.id, "content": result})
@@ -103,8 +160,11 @@ class Conversation:
         self.messages.append({"role": "user", "content": REMINDER})
 
     def accept(self, call, steps, tokens=None):
-        """Record the answer as accepted, and return what finish() returns for it. A loop that
-        counts tokens (step 3b) passes its count last, as {"input": ..., "output": ...}."""
+        """Return what finish() returns for an answer, and record it in the trace as accepted. For
+        ask()'s answer with no verdict, return what stop() returns. A loop that counts tokens (step
+        3b) passes its count last, as {"input": ..., "output": ...}."""
+        if call.why is not None:
+            return self.stop(call.why, steps, tokens)
         answer = clean_answer(call.input)
         self.trace.append({"tool": "answer", "input": call.input, "result": ACCEPTED})
         return finish(self.claim, answer["verdict"], answer["evidence"], answer["explanation"],
@@ -112,6 +172,7 @@ class Conversation:
 
     def stop(self, why, steps, tokens=None):
         """Return what finish() returns with no verdict. why is one of the ready-made sentences
-        in agent.py: RAN_OUT, NO_ANSWER, DECLINED or REJECTED_TOO_OFTEN.format(n=rejected). A
-        loop that counts tokens (step 3b) passes its count last."""
+        in agent.py: RAN_OUT, or, for a loop that does more, NO_ANSWER, DECLINED or
+        REJECTED_TOO_OFTEN.format(n=rejected). A loop that counts tokens (step 3b) passes its
+        count last."""
         return finish(self.claim, None, [], why, self.trace, steps, tokens)

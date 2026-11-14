@@ -116,6 +116,9 @@ def run_one(method, item):
                   correct=is_correct(item, result["verdict"]))
     if method == "agent":
         result["agent_version"] = agent_version()
+        # The limit it ran under: a loop that does not warn the model can pass it within one
+        # reply, so the results viewer cannot tell it from the counts.
+        result["max_steps"] = agent.MAX_STEPS
     return result
 
 
@@ -194,8 +197,7 @@ def report(items, results_by_method, out_dir=None):
     failed = sum("error" in r for r in every_run)
     no_verdict = sum(r["verdict"] is None for r in every_run) - failed
     if no_verdict:
-        say(f"\n{no_verdict} runs gave no verdict (for example a refusal, out of lookups or "
-            "its answer rejected three times). "
+        say(f"\n{no_verdict} runs gave no verdict (for example a refusal, or out of lookups). "
             "They count as wrong. The results viewer lists them on this run's page, under "
             "\"Claims with no verdict, or that stopped with an error\".")
     if failed:

@@ -38,9 +38,9 @@ def run_agent(claim, client=None, max_steps=MAX_STEPS, lookup=run_tool):
     rejected = 0       # answers sent back so far
 
     # Your loop should repeatedly call the model with the message history so far, and ask for
-    # its next step. It should make the lookups that step asks for, and add what they return to
-    # the history. It should check whether the model has given an answer that can be accepted
-    # yet. It should also pay attention to its limits: a claim that runs out of lookups, or of
-    # tries at an answer, may end undecided.
+    # its next step. It should check whether the model has given an answer yet. If not, it should
+    # make the lookups that step asks for, and add what they return to the history. It should
+    # also pay attention to whether the loop has reached its limit: a claim that runs out of
+    # lookups cannot be decided.
     # ---- your loop goes below this line (step 1a) ----
     raise NotImplementedError("The loop is not written yet: see step 1a.")

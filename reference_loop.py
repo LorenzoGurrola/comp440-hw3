@@ -8,8 +8,7 @@ exercise away. After that, compare it with yours (the write-up asks you to).
 
 import anthropic
 
-from agent import (DECLINED, INSTRUCTIONS, MAX_REJECTED, MAX_STEPS, NO_ANSWER, OUT_OF_STEPS,
-                   RAN_OUT, REJECTED_TOO_OFTEN, run_tool)
+from agent import INSTRUCTIONS, MAX_STEPS, RAN_OUT, run_tool
 from loop_parts import Conversation
 
 
@@ -21,40 +20,14 @@ def run_agent(claim, client=None, max_steps=MAX_STEPS, lookup=run_tool):
     trace, read_so_far = [], []
     talk = Conversation(claim, client, system, messages, trace, read_so_far, lookup)
     steps = 0           # lookups made so far
-    rejected = 0        # answers sent back so far
-    warned = False      # has the model been told it is out of lookups?
-    reminded = False    # was the model reminded after its last reply?
 
     while True:
         reply = talk.ask()
-        if reply.refused:
-            return talk.stop(DECLINED, steps)
-        if not reply.calls:
-            # The model asked for nothing. Remind it once how to finish.
-            if reminded:
-                return talk.stop(NO_ANSWER, steps)
-            talk.remind()
-            reminded = True
-            continue
-        reminded = False
-
-        warned_before = warned
-        for call in reply.calls:
-            if call.is_answer:
-                problem = talk.problem_with(call)
-                if problem is None:
-                    return talk.accept(call, steps)
-                talk.give(call, problem)
-                rejected += 1
-                if rejected >= MAX_REJECTED:
-                    return talk.stop(REJECTED_TOO_OFTEN.format(n=rejected), steps)
-            elif steps >= max_steps:
-                if warned_before:
-                    # It was told on an earlier reply that it was out of lookups: stop here.
-                    return talk.stop(RAN_OUT, steps)
-                talk.give(call, OUT_OF_STEPS.format(n=max_steps))
-                warned = True
-            else:
-                talk.give(call, talk.run(call))
-                steps += 1
+        if reply.answer:
+            return talk.accept(reply.answer, steps)
+        if steps >= max_steps:
+            return talk.stop(RAN_OUT, steps)
+        for call in reply.lookups:
+            talk.give(call, talk.run(call))
+            steps += 1
         talk.send_results()

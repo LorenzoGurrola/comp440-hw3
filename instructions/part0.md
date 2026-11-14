@@ -166,8 +166,9 @@ time. The entry numbers count answers too, but the Lookups count does not, so it
 than the last entry's number; when a question asks for a number, give the entry's. The result is saved as
 `runs/part0/agent-<number>.json`.
 
-An answer that was sent back (rejected) before a later one was accepted is the loop's evidence check: a
-quoted sentence was not in anything the agent had read. Text in a search result does not count as read.
+The reference loop does not check the sentences an answer quotes. In the results viewer, under "Quoted
+evidence", each quote says whether it appears word for word in something the agent read. Text in a
+search result does not count as read.
 
 **Write-up:** Answer these questions in `WRITEUP.md`, under 0d:
 

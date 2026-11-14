@@ -78,9 +78,11 @@ uv run python lookup.py --no-log read "<page title>" "<section>"
 - Of the five, how many matched the dataset's label, and for how many of those does the quoted evidence support the verdict?
 - Is accuracy alone a good measure of this agent? Why or why not?
 
-**Hint:** The loop has already checked that each quote appears in something the agent read. A quote can
-be real and still not support the verdict. For a verdict of *refuted*, ask whether the quotes show that
-the claim is false.
+**Hint:** The loop the homework asks for does not check the quotes, so under each one the results
+viewer says whether it appears word for word in something the agent read. A quote can be real and still
+not support the verdict. A quote that does not appear word for word may be a sentence the agent read with
+a few words changed, or something no page says. For a verdict of *refuted*, ask whether the quotes show
+that the claim is false.
 
 Some claims are worded oddly, because people made them by rewriting other claims. Take each as written,
 and if you cannot tell what it asserts, say so in its row.

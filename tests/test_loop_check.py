@@ -4,7 +4,12 @@ reading them first gives the exercise away.
 Offline tests for check_loop.py, the check of the loop in my_loop.py, and for how
 the agent chooses between that loop and the reference loop. Every test keeps
 runs/part1/loop-check.txt in a temporary folder, so none of them reads or leaves
-a runs/ folder in the repository."""
+a runs/ folder in the repository.
+
+Since November 14 the check asks for the plainest loop (five rules), and the
+reference loop is that loop. Loops written for the six rules before then, which
+check quotes, warn the model at the limit and remind it, must still pass and
+still run as they did: the raw loop below and the full loop are kept for that."""
 
 import json
 import re
@@ -25,10 +30,10 @@ import check_loop  # noqa: E402
 import evaluate  # noqa: E402
 import wiki  # noqa: E402
 
-# The reference loop as it was before the parts in loop_parts.py: written straight against the
-# Claude API. It is still a right loop for the check, which judges what a loop does, so the
-# broken loops below are made by editing it. KIT_REFERENCE is the reference loop in this
-# copy, written with the parts.
+# A loop as it was written before the parts in loop_parts.py: straight against the Claude API, for
+# the six rules of November 13 (it checks quotes, warns the model at the limit, reminds it, and
+# stops on a refusal). Students who started step 1a before it changed wrote loops like it, and it
+# must still pass, so most of the broken loops below are made by editing it.
 REFERENCE = '''"""The reference loop. The homework uses it in Part 0, before your own loop, in
 my_loop.py, has passed the check (uv run python check_loop.py), and not after.
 
@@ -104,8 +109,74 @@ def run_agent(claim, client=None, max_steps=MAX_STEPS, lookup=run_tool):
 
         messages.append({"role": "user", "content": results})
 '''
-KIT_REFERENCE = (ROOT / "reference_loop.py").read_text()
+
+# The full loop: reference_loop.py as it was from November 13 to 14, built with the parts for the
+# six rules. Students who passed the check in that time, and the instructor's own copy, have loops
+# like it. With the parts as they are now, it must still pass and still run as it did.
+FULL_LOOP = '''"""The reference loop. The homework uses it in Part 0, before your own loop, in
+my_loop.py, has passed the check (uv run python check_loop.py), and not after.
+It is built from the same parts as yours, in loop_parts.py.
+
+Do not open this file before step 1a is done: reading it first gives the
+exercise away. After that, compare it with yours (the write-up asks you to).
+"""
+
+import anthropic
+
+from agent import (DECLINED, INSTRUCTIONS, MAX_REJECTED, MAX_STEPS, NO_ANSWER, OUT_OF_STEPS,
+                   RAN_OUT, REJECTED_TOO_OFTEN, run_tool)
+from loop_parts import Conversation
+
+
+def run_agent(claim, client=None, max_steps=MAX_STEPS, lookup=run_tool):
+    """Check one claim. Returns what talk.accept() or talk.stop() returns."""
+    client = client or anthropic.Anthropic()
+    system = INSTRUCTIONS.read_text()
+    messages = [{"role": "user", "content": f"Claim: {claim}"}]
+    trace, read_so_far = [], []
+    talk = Conversation(claim, client, system, messages, trace, read_so_far, lookup)
+    steps = 0           # lookups made so far
+    rejected = 0        # answers sent back so far
+    warned = False      # has the model been told it is out of lookups?
+    reminded = False    # was the model reminded after its last reply?
+
+    while True:
+        reply = talk.ask()
+        if reply.refused:
+            return talk.stop(DECLINED, steps)
+        if not reply.calls:
+            # The model asked for nothing. Remind it once how to finish.
+            if reminded:
+                return talk.stop(NO_ANSWER, steps)
+            talk.remind()
+            reminded = True
+            continue
+        reminded = False
+
+        warned_before = warned
+        for call in reply.calls:
+            if call.is_answer:
+                problem = talk.problem_with(call)
+                if problem is None:
+                    return talk.accept(call, steps)
+                talk.give(call, problem)
+                rejected += 1
+                if rejected >= MAX_REJECTED:
+                    return talk.stop(REJECTED_TOO_OFTEN.format(n=rejected), steps)
+            elif steps >= max_steps:
+                if warned_before:
+                    # It was told on an earlier reply that it was out of lookups: stop here.
+                    return talk.stop(RAN_OUT, steps)
+                talk.give(call, OUT_OF_STEPS.format(n=max_steps))
+                warned = True
+            else:
+                talk.give(call, talk.run(call))
+                steps += 1
+        talk.send_results()
+'''
+KIT_REFERENCE = (ROOT / "reference_loop.py").read_text()     # the plainest loop, with the parts
 NOT_WRITTEN = "the loop is not written yet."
+FIVE = [f"ok         {n}. {title}" for n, title in enumerate(check_loop.RULES, 1)]
 
 
 @pytest.fixture(autouse=True)
@@ -128,13 +199,26 @@ def a_loop(tmp_path, source, monkeypatch=None):
     return path
 
 
-def broken(*edits):
-    """The reference loop with each (old, new) edit made once."""
-    source = REFERENCE
+def edited(source, *edits):
     for old, new in edits:
         assert source.count(old) == 1, old
         source = source.replace(old, new)
     return source
+
+
+def broken(*edits):
+    """The raw loop with each (old, new) edit made once."""
+    return edited(REFERENCE, *edits)
+
+
+def kit(*edits):
+    """The reference loop, the plainest loop with the parts, with each (old, new) edit made once."""
+    return edited(KIT_REFERENCE, *edits)
+
+
+def full(*edits):
+    """The full loop with the parts, with each (old, new) edit made once."""
+    return edited(FULL_LOOP, *edits)
 
 
 def shown(path):
@@ -143,39 +227,44 @@ def shown(path):
 
 # ---------- the skeleton, the reference loop and the way out ----------
 
-def test_the_skeleton_gives_six_not_yet_lines_and_no_file(monkeypatch, saved, capsys):
+def test_the_skeleton_gives_five_not_yet_lines_and_no_file(monkeypatch, saved, capsys):
     monkeypatch.setattr(check_loop, "MY_LOOP", ROOT / "my_loop.py")
     assert check_loop.main([]) == 1
     printed = capsys.readouterr().out.splitlines()
-    assert printed[:6] == [f"NOT YET    {n}. {title}: {NOT_WRITTEN}"
+    assert len(check_loop.RULES) == 5
+    assert printed[:5] == [f"NOT YET    {n}. {title}: {NOT_WRITTEN}"
                            for n, title in enumerate(check_loop.RULES, 1)]
-    assert printed[6:] == ["", f"The rule (1. {check_loop.RULES[0]}): {check_loop.rule_text(1)}", "", check_loop.FAILED]
+    assert printed[5:] == ["", f"The rule (1. {check_loop.RULES[0]}): {check_loop.rule_text(1)}", "",
+                           check_loop.FAILED]
     assert not saved.exists()
     assert agent.which_loop() == "reference"
 
 
-@pytest.mark.parametrize("name", ["only the first call", "no reminder", "the limit is MAX_STEPS"])
-def test_the_check_states_the_rule_behind_the_first_not_yet_line(tmp_path, monkeypatch, capsys,
-                                                                   name):
+@pytest.mark.parametrize("name", ["only the first call", "an empty turn after nothing",
+                                  "the limit is MAX_STEPS"])
+def test_the_check_states_the_rule_behind_the_first_not_yet_line(tmp_path, monkeypatch, capsys, name):
     """The page does not list the rules: the check states the one behind the first NOT YET line,
-    in plain words, once, under the six lines."""
+    in plain words, once, under the five lines."""
     rule, edits, _ = BROKEN[name]
     a_loop(tmp_path, broken(*edits), monkeypatch)
     assert check_loop.main([]) == 1
     printed = capsys.readouterr().out.splitlines()
     stated = [line for line in printed if line.startswith("The rule (")]
     assert stated == [f"The rule ({rule}. {check_loop.RULES[rule - 1]}): {check_loop.rule_text(rule)}"]
-    assert printed.index(stated[0]) == 7
+    assert printed.index(stated[0]) == 6
 
 
-def test_the_rules_are_stated_without_code_names():
-    for n in range(1, 7):
+def test_the_rules_are_stated_without_code_names_and_without_the_old_rules():
+    for n in range(1, 6):
         text = check_loop.rule_text(n)
         assert not any(name in text for name in ("MAX_", "max_steps", "talk.", "()", "_"))
+        for gone in ("evidence check", "warning", "remind", "refuse", "rejected"):
+            assert gone not in text, (n, gone)
+    assert "12 in a real run" in check_loop.rule_text(4)
 
 
 def test_no_rule_is_stated_when_every_rule_passes(tmp_path, monkeypatch, capsys):
-    a_loop(tmp_path, REFERENCE, monkeypatch)
+    a_loop(tmp_path, KIT_REFERENCE, monkeypatch)
     assert check_loop.main([]) == 0
     assert "The rule (" not in capsys.readouterr().out
 
@@ -193,15 +282,50 @@ def test_the_skeleton_names_no_rule_and_gives_nothing_more():
     assert "messages.create" not in source and "tool_result" not in source
 
 
-def test_the_reference_loop_passes_and_is_saved_as_yours(tmp_path, monkeypatch, saved, capsys):
-    a_loop(tmp_path, REFERENCE, monkeypatch)
+def test_the_skeleton_keeps_every_name_and_set_up_line_a_forked_loop_uses():
+    """Students take changes to my_loop.py through the page's Update button, a git merge into the
+    file that holds their loop. Every name the file imported and every set-up line it had stays, so
+    a loop written below the line keeps running after the merge."""
+    source = (ROOT / "my_loop.py").read_text()
+    for line in ("from agent import (ACCEPTED, DECLINED, INSTRUCTIONS, MAX_REJECTED, MAX_STEPS, MODEL, NO_ANSWER,",
+                 "                   OUT_OF_STEPS, RAN_OUT, REJECTED, REJECTED_TOO_OFTEN, REMINDED, REMINDER,",
+                 "                   TOOLS, answer_problem, clean_answer, finish, run_tool)",
+                 "def run_agent(claim, client=None, max_steps=MAX_STEPS, lookup=run_tool):",
+                 "    talk = Conversation(claim, client, system, messages, trace, read_so_far, lookup)",
+                 "    steps = 0          # lookups made so far"):
+        assert line in source.splitlines(), line
+    assert "    rejected = 0  " in source
+
+
+@pytest.mark.parametrize("source", [KIT_REFERENCE, FULL_LOOP, REFERENCE],
+                         ids=["the-reference-loop", "the-full-loop", "the-raw-loop"])
+def test_a_right_loop_passes_and_is_saved_as_yours(tmp_path, monkeypatch, saved, capsys, source):
+    a_loop(tmp_path, source, monkeypatch)
     assert check_loop.main([]) == 0
     printed = capsys.readouterr().out.splitlines()
-    assert printed == [f"ok         {n}. {title}" for n, title in enumerate(check_loop.RULES, 1)] \
-        + ["", check_loop.PASSED]
+    assert printed == FIVE + ["", check_loop.PASSED]
     assert saved.read_text().splitlines() == ["yours"] + printed
     assert agent.which_loop() == "yours"
     assert not agent.counts_tokens()      # no token line: tokens and cost stay hidden
+
+
+def test_the_reference_loop_is_the_plainest_loop():
+    """The reference loop is the five lines of the instructor's loop (Nov 14), written with the parts:
+    no check of quotes, no warning at the limit, and no reminder or refusal of its own."""
+    body = KIT_REFERENCE[KIT_REFERENCE.index("    while True:"):].strip().splitlines()
+    assert [line.strip() for line in body] == [
+        "while True:",
+        "reply = talk.ask()",
+        "if reply.answer:",
+        "return talk.accept(reply.answer, steps)",
+        "if steps >= max_steps:",
+        "return talk.stop(RAN_OUT, steps)",
+        "for call in reply.lookups:",
+        "talk.give(call, talk.run(call))",
+        "steps += 1",
+        "talk.send_results()"]
+    for name in ("problem_with", "OUT_OF_STEPS", "remind", "refused", "rejected", "warned"):
+        assert name not in KIT_REFERENCE, name
 
 
 def test_there_is_no_way_to_keep_the_reference_loop(saved, capsys):
@@ -226,9 +350,9 @@ def test_a_failing_check_after_a_pass_stops_the_agent(tmp_path, monkeypatch, sav
     a_loop(tmp_path, broken(("                steps += 1\n", "")), monkeypatch)
     assert check_loop.main([]) == 1
     printed = capsys.readouterr().out.splitlines()
-    assert printed[6:] == ["", f"The rule (2. {check_loop.RULES[1]}): {check_loop.rule_text(2)}", "", check_loop.FAILED,
-                           check_loop.NOT_PASSING_NOW]
-    assert saved.read_text().splitlines() == ["not passing", check_loop.FELL_BACK] + printed[:6]
+    assert printed[5:] == ["", f"The rule (4. {check_loop.RULES[3]}): {check_loop.rule_text(4)}", "",
+                           check_loop.FAILED, check_loop.NOT_PASSING_NOW]
+    assert saved.read_text().splitlines() == ["not passing", check_loop.FELL_BACK] + printed[:5]
     assert agent.which_loop() == "not passed"
     # Once it says "not passing", a failing check leaves the file as it is.
     before = saved.read_text()
@@ -236,9 +360,8 @@ def test_a_failing_check_after_a_pass_stops_the_agent(tmp_path, monkeypatch, sav
     assert check_loop.NOT_PASSING_NOW not in capsys.readouterr().out
     assert saved.read_text() == before
     # And passing again puts the agent back on the student's loop.
-    a_loop(tmp_path, REFERENCE, monkeypatch)
+    a_loop(tmp_path, KIT_REFERENCE, monkeypatch)
     assert check_loop.main([]) == 0 and agent.which_loop() == "yours"
-
 
 
 def printing(source, what):
@@ -251,30 +374,30 @@ def printing(source, what):
 IDS = 'print("ids:", [b.id for b in response.content if b.type == "tool_use"])'
 
 
-def test_what_the_loop_printed_is_shown_for_the_first_failing_rule(tmp_path, monkeypatch,
-                                                                     saved, capsys):
-    # Steps are not counted, so rule 2 is the first to fail (and rule 5 fails too).
-    a_loop(tmp_path, printing(broken(("                steps += 1\n", "")),
+def test_what_the_loop_printed_is_shown_for_the_first_failing_rule(tmp_path, monkeypatch, saved, capsys):
+    # Only the first lookup of each reply is made, so rule 2 is the first to fail.
+    a_loop(tmp_path, printing(broken(("for call in calls:", "for call in calls[:1]:")),
                               IDS + "; print('to stderr', file=sys.stderr)"), monkeypatch)
     source = check_loop.MY_LOOP.read_text().replace("import anthropic\n",
                                                     "import sys\n\nimport anthropic\n", 1)
     check_loop.MY_LOOP.write_text(source)
     assert check_loop.main([]) == 1
     printed = capsys.readouterr().out.splitlines()
-    assert printed[1].startswith("NOT YET    2. ") and printed[4].startswith("NOT YET    5. ")
-    assert printed[6:11] == ["", f"The rule (2. {check_loop.RULES[1]}): {check_loop.rule_text(2)}", "", check_loop.FAILED, ""]
-    assert printed[11] == "What your loop printed during the made-up check for rule 2:"
-    shown = printed[12:]
+    assert printed[1].startswith("NOT YET    2. ")
+    assert printed[5:10] == ["", f"The rule (2. {check_loop.RULES[1]}): {check_loop.rule_text(2)}", "",
+                             check_loop.FAILED, ""]
+    assert printed[10] == "What your loop printed during the made-up check for rule 2:"
+    shown_ = printed[11:]
     # Only the made-up check for rule 2, whose tool ids carry its name; stderr too.
-    assert shown[0] == "ids: ['toolu_lookups_11']"
-    assert shown[1] == "to stderr"
-    assert all("toolu_" not in line or "toolu_lookups_" in line for line in shown)
-    assert len(shown) == 2 * 4       # four replies before its answer is accepted, two lines each
+    assert shown_[0] == "ids: ['toolu_lookups_11']"
+    assert shown_[1] == "to stderr"
+    assert all("toolu_" not in line or "toolu_lookups_" in line for line in shown_)
+    # Five replies: its answer quotes the read it did not make, so it is sent back.
+    assert len(shown_) == 2 * 5
     assert not saved.exists()        # and nothing of it is saved
 
 
-def test_what_the_loop_printed_is_not_shown_when_every_rule_passes(tmp_path, monkeypatch, saved,
-                                                                  capsys):
+def test_what_the_loop_printed_is_not_shown_when_every_rule_passes(tmp_path, monkeypatch, saved, capsys):
     a_loop(tmp_path, printing(REFERENCE, IDS), monkeypatch)
     assert check_loop.main([]) == 0
     out = capsys.readouterr().out
@@ -287,11 +410,10 @@ def test_long_output_is_cut_to_40_lines(tmp_path, monkeypatch, capsys):
                               "print('\\n'.join(f'line {i}' for i in range(30)))"), monkeypatch)
     assert check_loop.main([]) == 1
     out = capsys.readouterr().out
-    shown = out.split("What your loop printed during the made-up check for rule 1:\n")[1]
-    shown = shown.splitlines()
+    shown_ = out.split("What your loop printed during the made-up check for rule 1:\n")[1].splitlines()
     # The made-up check for rule 1 gets three replies: 90 lines printed, 40 shown.
-    assert shown[:40] == [f"line {i % 30}" for i in range(40)]
-    assert shown[40:] == ["(50 more lines not shown)"]
+    assert shown_[:40] == [f"line {i % 30}" for i in range(40)]
+    assert shown_[40:] == ["(50 more lines not shown)"]
 
 
 def test_nothing_is_shown_when_the_loop_printed_nothing(tmp_path, monkeypatch, capsys):
@@ -328,10 +450,10 @@ def test_which_loop_follows_the_file(saved):
 
 # ---------- fair to loops written differently ----------
 
-# Correct loops organised differently from the reference loop, and from each other.
-# The first asks the model in a nested helper function, stops through another, keeps a flag
-# for the reminder and for the limit, checks the limit for the whole turn, and sends the
-# reminder as a text block.
+# Loops for the six rules, organised differently from the raw loop and from each other. The first
+# asks the model in a nested helper function, stops through another, keeps a flag for the
+# reminder and for the limit, checks the limit for the whole turn, and sends the reminder as a
+# text block.
 HELPERS = '''
 import anthropic
 
@@ -549,306 +671,9 @@ def run_agent(claim, client=None, max_steps=MAX_STEPS, lookup=run_tool):
         messages.append({"role": "user", "content": results})
 '''
 
-
-@pytest.mark.parametrize("source", [HELPERS, BY_ID, MODULE_HELPERS,
-                                    broken(("for call in calls:", "for call in reversed(calls):"))],
-                         ids=["nested-helpers", "by-id", "module-helpers", "calls-in-reverse"])
-def test_loops_written_differently_pass_every_rule(tmp_path, source):
-    assert check_loop.check(a_loop(tmp_path, source)) == [None] * 6
-
-
-@pytest.mark.parametrize("name, value", [("MAX_STEPS", 3), ("MAX_STEPS", 30),
-                                         ("MAX_REJECTED", 1), ("MAX_REJECTED", 6),
-                                         ("answer_problem", lambda answer, read_so_far: None)])
-def test_a_change_to_agent_py_in_part_3_does_not_fail_a_correct_loop(tmp_path, monkeypatch,
-                                                                    name, value):
-    # Part 3 lets the student change agent.py, the limit of lookups above all.
-    monkeypatch.setattr(agent, name, value)
-    assert check_loop.check(a_loop(tmp_path, REFERENCE)) == [None] * 6
-    assert check_loop.check(a_loop(tmp_path, BY_ID)) == [None] * 6
-
-
-def renamed(source, *names):
-    for name in names:
-        source = re.sub(rf"\b{name}\b", f"my_{name}", source)
-    return source
-
-
-def test_a_complete_loop_with_other_names_for_the_set_up_variables_passes(tmp_path):
-    # The check looks inside run_agent() only for a loop that does not stop yet.
-    source = renamed(REFERENCE, "steps", "trace", "read_so_far")
-    assert "my_steps += 1" in source and "max_steps" in source
-    assert check_loop.check(a_loop(tmp_path, source)) == [None] * 6
-
-
-def test_an_error_about_the_client_names_the_scripted_model(tmp_path):
-    source = broken(("response = client.messages.create(", "response = client.messages.stream("))
-    assert "AttributeError: 'ScriptedModel' object has no attribute 'stream'" in \
-        check_loop.check(a_loop(tmp_path, source))[0]
-
-
-# Rules 1 to 3 and nothing more: the page suggests writing these first and running the check.
-FIRST_THREE = REFERENCE[:REFERENCE.index("    while True:")] + '''    while True:
-        response = client.messages.create(model=MODEL, max_tokens=16000, system=system,
-                                          tools=TOOLS, messages=messages)
-        messages.append({"role": "assistant", "content": response.content})
-        results = []
-        for call in [block for block in response.content if block.type == "tool_use"]:
-            result = lookup(call.name, call.input)
-            steps += 1
-            trace.append({"tool": call.name, "input": call.input, "result": result})
-            if call.name != "search":
-                read_so_far.append(result)
-            results.append({"type": "tool_result", "tool_use_id": call.id, "content": result})
-        messages.append({"role": "user", "content": results})
-'''
-
-
-def test_rules_1_to_3_can_pass_before_the_loop_can_stop(tmp_path):
-    assert shown(a_loop(tmp_path, FIRST_THREE)) == [
-        "ok         1. Ask the model",
-        "ok         2. Run its lookups",
-        "ok         3. Send the results back",
-        "NOT YET    4. Check the answer: the model's second reply gave an answer that quotes the "
-        "page it had read, and your loop ran it as a lookup.",
-        "NOT YET    5. Enforce the limit: the model's third reply asked for a third search with "
-        "the limit of 2 lookups reached, and your loop made it: it had made 2 lookups before that "
-        "one; in another made-up check the model asked for one search in each of 6 replies, and "
-        "your loop made all 6 and never sent back the warning.",
-        "NOT YET    6. Stop when the model stops: the model's first reply had text and no tool "
-        "call, and your loop asked the model again without sending it the reminder ('Please "
-        "finish by calling answer().').",
-    ]
-
-
-# A half-written loop does not stop, so rule 2 looks inside run_agent() for it.
-HALF_BROKEN = {
-    "steps not counted": (2, [("            steps += 1\n", "")],
-                          "after the model's first reply, your loop had made one lookup, and "
-                          "its count of lookups was 0 when it asked the model again"),
-    "search kept": (2, [('if call.name != "search":', "if True:")],
-                    "the model's first reply asked for a search, and what the search found was "
-                    "counted as read by the agent when your loop asked the model again"),
-    "steps renamed": (2, [], "the check could not find `steps` in run_agent(): keep the names "
-                             "of the set-up lines at the top of the function"),
-}
-
-
-@pytest.mark.parametrize("name", HALF_BROKEN)
-def test_a_half_written_loop_is_checked_from_inside(tmp_path, name):
-    rule, edits, problem = HALF_BROKEN[name]
-    source = FIRST_THREE
-    for old, new in edits:
-        assert source.count(old) == 1, old
-        source = source.replace(old, new)
-    if name.endswith("renamed"):
-        source = renamed(source, name.split()[0])
-    problems = check_loop.check(a_loop(tmp_path, source))
-    assert problems[:rule - 1] == [None] * (rule - 1)
-    assert problems[rule - 1] == problem
-    assert problems.count(problem) == 1      # said once, on the first rule that needed it
-
-
-# ---------- one broken loop per rule, and what each line says ----------
-
-EXPLANATION_LINE = 1 + REFERENCE[:REFERENCE.index('answer["explanation"]')].count("\n")
-REFUSAL = ('        if response.stop_reason == "refusal":\n'
-           '            return finish(claim, None, [], DECLINED, trace, steps)\n')
-BROKEN = {
-    "no assistant turn": (1, [('        messages.append({"role": "assistant", '
-                               '"content": response.content})\n', "")],
-                          ["the model's first reply asked for a search, and the next request "
-                           "your loop sent did not have that reply in the conversation"]),
-    "reply added twice": (1, [('        messages.append({"role": "assistant", "content": response.content})\n',
-                               '        messages.append({"role": "assistant", "content": response.content})\n' * 2)],
-                          ["the model's first reply asked for a search, and the next request "
-                           "your loop sent had that reply in the conversation two times"]),
-    "text block dropped": (1, [('"content": response.content}',
-                                '"content": [b for b in response.content if b.type == "tool_use"]}')],
-                           ["the model's first reply asked for a search, and the next request "
-                            "your loop sent had that reply in the conversation with parts of it "
-                            "missing or changed"]),
-    "no system text": (1, [("system=system, ", "")], ["the first request your loop sent the "
-                                                      "model did not have the text of "
-                                                      "instructions.md as its system text"]),
-    "wrong model": (1, [("model=MODEL,", "model='claude-opus-5-5',")],
-                    ["the first request your loop sent the model named the model "
-                     "'claude-opus-5-5', not 'claude-haiku-5-5'"]),
-    "only the newest turn": (1, [("messages=messages,", "messages=messages[-2:],")],
-                             ["the model's first reply asked for a search, and the next request "
-                              "your loop sent did not hold the whole conversation so far"]),
-    "steps not counted": (2, [("                steps += 1\n", "")],
-                          ["the model asked for four lookups before its answer, and when your "
-                           "loop stopped its count of lookups was 0"]),
-    "search kept": (2, [('if call.name != "search":', "if True:")],
-                    ["the model's first reply asked for a search, and what the search found was "
-                     "counted as read by the agent when your loop checked the answer"]),
-    "read not kept": (2, [("                    read_so_far.append(result)\n",
-                           "                    pass\n")],
-                      ["the model's second reply asked for a read, and what the read found was "
-                       "not counted as read by the agent when your loop checked the answer"]),
-    "lookup not in the trace": (2, [('            trace.append({"tool": call.name, "input": '
-                                     'call.input, "result": result})\n', "")],
-                                ["the model's first reply asked for a search, and the trace "
-                                 "your loop stopped with had no entry for the search"]),
-    "only the first call": (2, [("for call in calls:", "for call in calls[:1]:")],
-                            ["the model's third reply asked for a wikidata lookup and a read, "
-                             "and your loop made the wikidata lookup only, then asked the model "
-                             "again without making the read"]),
-    "results not sent": (3, [('        messages.append({"role": "user", "content": results})\n', "")],
-                         ["the model's first reply asked for a search and a read, and the next "
-                          "request your loop sent ended with that reply: the results for it had "
-                          "not been sent"]),
-    "wrong id": (3, [('"tool_use_id": call.id', '"tool_use_id": calls[0].id')],
-                 ["the model's first reply asked for a search and a read, and the next request "
-                  "your loop sent held two results for the search"]),
-    "a result as a list": (3, [('"tool_use_id": call.id, "content": result}',
-                                '"tool_use_id": call.id, "content": [{"type": "text", "text": result}]}')],
-                           ["the model's first reply asked for a search and a read, and the "
-                            "result given for the search was a list rather than text"]),
-    "a refused lookup gets no result": (3, [("                warned = True\n",
-                                             "                warned = True\n                continue\n")],
-                                        ["the model's third reply asked for a third search, and "
-                                         "the next request your loop sent held no result for "
-                                         "the search"]),
-    "a rejected answer gets no result": (3, [
-        ('            results.append({"type": "tool_result", "tool_use_id": call.id, "content": result})\n',
-         '            if call.name != "answer":\n'
-         '                results.append({"type": "tool_result", "tool_use_id": call.id, '
-         '"content": result})\n')],
-        ["the model's second reply gave an answer with a quote that is in nothing it had read, "
-         "and the next request your loop sent held no result for the answer"]),
-    "a turn per result": (3, [('            results.append({"type": "tool_result", '
-                               '"tool_use_id": call.id, "content": result})\n',
-                               '            messages.append({"role": "user", "content": [{"type": '
-                               '"tool_result", "tool_use_id": call.id, "content": result}]})\n'),
-                              ('        messages.append({"role": "user", "content": results})\n', "")],
-                          ["the model's first reply asked for a search and a read, and your "
-                           "loop sent the results for that reply in two separate turns, where "
-                           "the model is sent them all together, once every call in the reply "
-                           "has its result"]),
-    "answer not cleaned": (4, [("answer = clean_answer(call.input)", "answer = call.input")],
-                           ["the model's second reply gave an answer with its evidence as one "
-                            "string and no explanation, and your loop stopped with an error at "
-                            "line 53 of my_loop.py: KeyError: 'explanation'"]),
-    "one rejection too many": (4, [("rejected >= MAX_REJECTED", "rejected > MAX_REJECTED")],
-                               ["the model's first three replies were answers with a quote that "
-                                "is in nothing it had read, and your loop asked the model again "
-                                "after the third was rejected"]),
-    "rejection without REJECTED": (4, [("result = REJECTED + problem", "result = problem")],
-                                   ["the model's second reply gave an answer with a quote that "
-                                    "is in nothing it had read, and your loop sent back 'These "
-                                    "quotes are not in anything you read in this check: "
-                                    "Zemeckis was born in Ohio.' rather than what the evidence "
-                                    "check said was wrong"]),
-    "evidence left out": (4, [('return finish(claim, answer["verdict"], answer["evidence"],',
-                               'return finish(claim, answer["verdict"], [],')],
-                          ["the model's second reply gave an answer that quotes the page it had "
-                           "read, and your loop stopped with the evidence [], where this case "
-                           "ends with the evidence ['directed by Robert Zemeckis']"]),
-    "lookups only in the trace": (4, [
-        ('                    trace.append({"tool": "answer", "input": call.input, "result": ACCEPTED})\n', ""),
-        ('                    trace.append({"tool": "answer", "input": call.input, "result": result})\n', ""),
-        ('            trace.append({"tool": call.name, "input": call.input, "result": result})\n', ""),
-        ("                result = lookup(call.name, call.input)\n",
-         "                result = lookup(call.name, call.input)\n"
-         '                trace.append({"tool": call.name, "input": call.input, "result": result})\n')],
-        ["the model's second reply gave an answer that quotes the page it had read, and the "
-         "trace your loop stopped with does not record that answer as accepted"]),
-    "a rejected answer not in the trace": (4, [
-        ('            trace.append({"tool": call.name, "input": call.input, "result": result})\n',
-         '            if call.name != "answer":\n'
-         '                trace.append({"tool": call.name, "input": call.input, "result": result})\n')],
-        ["the model's second reply gave an answer with a quote that is in nothing it had read, "
-         "and the trace your loop stopped with has no entry for it with what was sent back"]),
-    "a refused lookup not in the trace": (5, [
-        ("                result = OUT_OF_STEPS.format(n=max_steps)\n                warned = True\n",
-         "                warned = True\n"
-         '                results.append({"type": "tool_result", "tool_use_id": call.id,\n'
-         '                                "content": OUT_OF_STEPS.format(n=max_steps)})\n'
-         "                continue\n")],
-        ["the model's third reply asked for a third search with the limit of 2 lookups reached, "
-         "and the trace your loop stopped with has no entry for it with what was sent back"]),
-    "the limit is MAX_STEPS": (5, [("elif steps >= max_steps:", "elif steps >= MAX_STEPS:")],
-                               ["the model's third reply asked for a third search with the "
-                                "limit of 2 lookups reached, and your loop made it: it had made "
-                                "2 lookups before that one; in another made-up check the model "
-                                "asked for one search in each of 6 replies, and your loop made "
-                                "all 6 and never sent back the warning"]),
-    "stops at once": (5, [("if warned_before:", "if True:")],
-                      ["the model's third reply asked for a third search with the limit of 2 "
-                       "lookups reached, and your loop stopped instead of sending back the "
-                       "warning: it had made 2 lookups, the limit, and this was the first time "
-                       "the model asked for one more"]),
-    # A limit reached one lookup late, and one reached one lookup early: the numbers in the
-    # sentence tell them apart from a limit that is never checked.
-    "the limit checked one late": (5, [("elif steps >= max_steps:", "elif steps > max_steps:")],
-                                   ["the model's third reply asked for a third search with the "
-                                    "limit of 2 lookups reached, and your loop made it: it had "
-                                    "made 2 lookups before that one; in another made-up check "
-                                    "the model asked for one search in each of 6 replies, and "
-                                    "your loop first sent back the warning for the fourth "
-                                    "search, when it had made 3 lookups"]),
-    "the limit checked one early": (5, [("elif steps >= max_steps:",
-                                         "elif steps >= max_steps - 1:")],
-                                    ["the model's second reply asked for a second search, and "
-                                     "your loop sent back the warning instead of making it, "
-                                     "though it had made only 1 lookup and the limit is 2"]),
-    "never stops at the limit": (5, [("if warned_before:", "if False:")],
-                                 ["the model's fourth reply asked for a fourth search after the "
-                                  "warning had been sent back, and your loop asked the model "
-                                  "again instead of stopping: it had made 2 lookups, the limit, "
-                                  "and for that search it sent back the warning again"]),
-    "no reminder": (6, [('            trace.append({"tool": "(reminder)"',
-                         '            return finish(claim, None, [], NO_ANSWER, trace, steps)\n'
-                         '            trace.append({"tool": "(reminder)"')],
-                    ["the model's first reply had text and no tool call, and your loop stopped "
-                     "instead of reminding the model to answer"]),
-    "a break out of the while loop": (6, [
-        ('            trace.append({"tool": "(reminder)", "input": {}, "result": REMINDED})\n',
-         '            break\n'
-         '            trace.append({"tool": "(reminder)", "input": {}, "result": REMINDED})\n')],
-        ["the model's first reply had text and no tool call, and your loop ended without an "
-         "answer or a verdict (it returned nothing) instead of reminding the model to answer"]),
-    # The limit is reached, then one reply asks for two lookups: each must get OUT_OF_STEPS.
-    "the first lookup at the limit warns, the second stops": (5, [
-        ("                if warned_before:\n", "                if warned:\n")],
-        ["the model's third reply asked for a search and a read in one reply, with the limit of "
-         "2 lookups reached, and your loop stopped, with the explanation 'The agent ran out of "
-         "steps.', instead of sending back the warning for each of the two"]),
-    "the second lookup at the limit gets no result": (3, [
-        ("                result = OUT_OF_STEPS.format(n=max_steps)\n",
-         "                if warned:\n                    continue\n"
-         "                result = OUT_OF_STEPS.format(n=max_steps)\n")],
-        ["the model's third reply asked for a search and a read in one reply, and the next "
-         "request your loop sent held no result for the read"]),
-    "reminds forever": (6, [('            if trace and trace[-1]["tool"] == "(reminder)":\n'
-                             '                return finish(claim, None, [], NO_ANSWER, trace, '
-                             'steps)\n', "")],
-                        ["the model's second reply had text and no tool call again, and your "
-                         "loop asked the model a third time instead of stopping"]),
-    "refusal not stopped": (6, [(REFUSAL, "")],
-                            ["the model's first reply refused to check the claim, and your loop "
-                             "asked the model again instead of stopping"]),
-}
-
-
-@pytest.mark.parametrize("name", BROKEN)
-def test_a_broken_loop_fails_its_rule_and_says_what_happened(tmp_path, name):
-    rule, edits, phrases = BROKEN[name]
-    printed = shown(a_loop(tmp_path, broken(*edits)))
-    first = next(i for i, line in enumerate(printed, 1) if line.startswith("NOT YET"))
-    assert first == rule, printed
-    line = printed[rule - 1]
-    assert line.startswith(f"NOT YET    {rule}. {check_loop.RULES[rule - 1]}: ")
-    for phrase in phrases:
-        assert phrase in line, line
-    assert line.endswith(".") and "\n" not in line
-
-
-# A student's loop that stopped at the second lookup of one reply at the limit, and the same
-# student's fix: a flag for "a lookup was refused in this reply", turned into "warned" only
-# after the whole reply is handled.
+# A student's loop for the six rules, from the simulations of Nov 13: the limit is looked at for
+# each lookup, with a memory of the warning that is never reset after a stall. The six rules did
+# not pass it; the five do, because its warning still lets the model answer.
 STUDENT_GAP = """
 import anthropic
 
@@ -914,144 +739,407 @@ def run_agent(claim, client=None, max_steps=MAX_STEPS, lookup=run_tool):
             results.append({"type": "tool_result", "tool_use_id": call.id, "content": result})
         messages.append({"role": "user", "content": results})
 """
-STUDENT_FIXED = (STUDENT_GAP
-                 .replace("        results = []\n",
-                          "        results = []\n        refused_this_turn = False\n")
-                 .replace("                warned = True\n", "                refused_this_turn = True\n")
-                 .replace('        messages.append({"role": "user", "content": results})\n',
-                          "        if refused_this_turn:\n            warned = True\n"
-                          '        messages.append({"role": "user", "content": results})\n'))
+
+# The plainest loop, written two other ways: with the parts' reply.calls instead of reply.answer
+# and reply.lookups, and straight against the Claude API, as a student who started before the
+# parts might write it (with a reminder of its own, since it has no parts to remind the model).
+BARE_CALLS = kit(("""        if reply.answer:
+            return talk.accept(reply.answer, steps)
+""", """        for call in reply.calls:
+            if call.is_answer:
+                return talk.accept(call, steps)
+"""), ("""        for call in reply.lookups:
+            talk.give(call, talk.run(call))
+            steps += 1
+""", """        for call in reply.calls:
+            if call.is_lookup:
+                talk.give(call, talk.run(call))
+                steps += 1
+"""))
+BARE_RAW = REFERENCE[:REFERENCE.index("    rejected = 0")] + '''    reminded = False
+
+    while True:
+        response = client.messages.create(model=MODEL, max_tokens=16000, system=system,
+                                          tools=TOOLS, messages=messages)
+        messages.append({"role": "assistant", "content": response.content})
+        calls = [block for block in response.content if block.type == "tool_use"]
+        answers = [call for call in calls if call.name == "answer"]
+        if answers:
+            answer = clean_answer(answers[0].input)
+            trace.append({"tool": "answer", "input": answers[0].input, "result": ACCEPTED})
+            return finish(claim, answer["verdict"], answer["evidence"], answer["explanation"],
+                          trace, steps)
+        if steps >= max_steps:
+            return finish(claim, None, [], RAN_OUT, trace, steps)
+        if not calls:
+            if reminded:
+                return finish(claim, None, [], NO_ANSWER, trace, steps)
+            reminded = True
+            trace.append({"tool": "(reminder)", "input": {}, "result": REMINDED})
+            messages.append({"role": "user", "content": REMINDER})
+            continue
+        reminded = False
+        results = []
+        for call in calls:
+            result = lookup(call.name, call.input)
+            steps += 1
+            trace.append({"tool": call.name, "input": call.input, "result": result})
+            results.append({"type": "tool_result", "tool_use_id": call.id, "content": result})
+        messages.append({"role": "user", "content": results})
+'''
+
+PASSING = {
+    "nested-helpers": HELPERS,
+    "by-id": BY_ID,
+    "module-helpers": MODULE_HELPERS,
+    "calls-in-reverse": broken(("for call in calls:", "for call in reversed(calls):")),
+    "a-students-loop-from-nov-13": STUDENT_GAP,
+    "the-limit-once-per-reply-and-no-warning": broken(("        results = []\n        warned_before = warned\n",
+                                                       "        if steps >= max_steps and any(c.name != 'answer' for c in calls):\n"
+                                                       "            return finish(claim, None, [], RAN_OUT, trace, steps)\n"
+                                                       "        results = []\n        warned_before = warned\n")),
+    "a-warning-then-a-stop-in-the-same-reply": broken(("                if warned_before:\n", "                if warned:\n")),
+    "the-full-loop-checking-the-limit-once-per-reply": full(
+        ("        warned_before = warned\n", "        warned_before = warned\n        over = steps >= max_steps\n"),
+        ("            elif steps >= max_steps:", "            elif over:")),
+    "the-full-loop-stopping-on-the-last-failed-answer": full(("""                talk.give(call, problem)
+                rejected += 1
+                if rejected >= MAX_REJECTED:
+                    return talk.stop(REJECTED_TOO_OFTEN.format(n=rejected), steps)
+""", """                rejected += 1
+                if rejected >= MAX_REJECTED:
+                    return talk.stop(REJECTED_TOO_OFTEN.format(n=rejected), steps)
+                talk.give(call, problem)
+""")),
+    "the-full-loop-reminding-again-and-again": full(("""            if reminded:
+                return talk.stop(NO_ANSWER, steps)
+""", "")),
+    "the-plainest-loop-with-reply-calls": BARE_CALLS,
+    "the-plainest-loop-without-the-parts": BARE_RAW,
+    "a-loop-without-the-parts-that-stops-on-a-reply-asking-for-nothing": edited(BARE_RAW, (
+        """            if reminded:
+                return finish(claim, None, [], NO_ANSWER, trace, steps)
+            reminded = True
+            trace.append({"tool": "(reminder)", "input": {}, "result": REMINDED})
+            messages.append({"role": "user", "content": REMINDER})
+            continue
+""", "            return finish(claim, None, [], NO_ANSWER, trace, steps)\n")),
+}
 
 
-def test_a_loop_that_stops_at_the_second_lookup_of_one_reply_at_the_limit_is_not_yet(tmp_path):
-    problems = check_loop.check(a_loop(tmp_path, STUDENT_GAP))
-    assert problems[:4] == [None] * 4                               # rules 1 to 4 pass
-    assert problems[5] == STALL     # its reminder memory is never reset, which the stall case finds
-    assert problems[4] == (
-        "the model's third reply asked for a search and a read in one reply, with the limit of 2 "
-        "lookups reached, and your loop stopped, with the explanation 'The agent ran out of "
-        "steps.', instead of sending back the warning for each of the two")
+@pytest.mark.parametrize("name", PASSING)
+def test_loops_written_differently_pass_every_rule(tmp_path, name):
+    assert check_loop.check(a_loop(tmp_path, PASSING[name])) == [None] * 5
 
 
-# A second, separate stall must be reminded again. These students'
-# loops set their reminder memory and never reset it, which the check did not find before.
-STALL = ("the model's first reply asked for nothing and your loop reminded it, its second reply asked "
-        "for a search, and its third reply asked for nothing again; your loop stopped there instead "
-        "of reminding the model again")
+@pytest.mark.parametrize("name, value", [("MAX_STEPS", 3), ("MAX_STEPS", 30),
+                                         ("MAX_REJECTED", 1), ("MAX_REJECTED", 6),
+                                         ("answer_problem", lambda answer, read_so_far: None)])
+def test_a_change_to_agent_py_in_part_3_does_not_fail_a_correct_loop(tmp_path, monkeypatch, name, value):
+    # Part 3 lets the student change agent.py, the limit of lookups above all.
+    monkeypatch.setattr(agent, name, value)
+    for source in (KIT_REFERENCE, FULL_LOOP, REFERENCE, BY_ID):
+        assert check_loop.check(a_loop(tmp_path, source)) == [None] * 5
 
 
-def test_the_students_fixed_loop_passes_rule_5_and_meets_the_stall_case(tmp_path):
-    assert STUDENT_FIXED.count("refused_this_turn") == 3
-    assert check_loop.check(a_loop(tmp_path, STUDENT_FIXED)) == [None] * 5 + [STALL]
-    reset = STUDENT_FIXED.replace("        results = []\n",
-                                  "        reminded = False\n        results = []\n")
-    assert check_loop.check(a_loop(tmp_path, reset)) == [None] * 6
+def test_where_the_plainest_loop_and_the_full_loop_differ_the_check_takes_either(tmp_path):
+    """On an answer quoting what the agent never read, on a model that keeps asking at the limit and
+    on a reply that crosses the limit, the two loops do different things. Both pass."""
+    def ends(source):
+        path = str(a_loop(tmp_path, source).resolve())
+        module = check_loop.load(path)
+        with check_loop.offline():
+            runs = {key: check_loop.Run(key, module.run_agent, path) for key in check_loop.SCENARIOS}
+        return {key: (len(run.requests), run.result["verdict"], run.result["steps"])
+                for key, run in runs.items()}
+    plain, whole = ends(KIT_REFERENCE), ends(FULL_LOOP)
+    assert plain["unread"] == (2, "supported", 1) and whole["unread"] == (3, "doesn't say", 1)
+    assert plain["limit_again"] == (3, None, 2) and whole["limit_again"] == (4, None, 2)
+    assert plain["limit_cross"] == (3, "doesn't say", 3) and whole["limit_cross"] == (3, "doesn't say", 2)
+    assert plain["both"] == (2, "supported", 1) and whole["both"] == (2, "supported", 2)
+    same = [key for key in check_loop.SCENARIOS if key not in ("unread", "limit_again", "limit_cross", "both")]
+    assert {key: plain[key] for key in same} == {key: whole[key] for key in same}
+    assert check_loop.check(a_loop(tmp_path, KIT_REFERENCE)) == check_loop.check(a_loop(tmp_path, FULL_LOOP))
+
+
+def renamed(source, *names):
+    for name in names:
+        source = re.sub(rf"\b{name}\b", f"my_{name}", source)
+    return source
+
+
+def test_a_complete_loop_with_other_names_for_the_set_up_variables_passes(tmp_path):
+    # The check looks inside run_agent() only for a loop that does not stop yet.
+    source = renamed(REFERENCE, "steps", "trace", "read_so_far")
+    assert "my_steps += 1" in source and "max_steps" in source
+    assert check_loop.check(a_loop(tmp_path, source)) == [None] * 5
+
+
+def test_an_error_about_the_client_names_the_scripted_model(tmp_path):
+    source = broken(("response = client.messages.create(", "response = client.messages.stream("))
+    assert "AttributeError: 'ScriptedModel' object has no attribute 'stream'" in \
+        check_loop.check(a_loop(tmp_path, source))[0]
+
+
+# Rules 1 and 2 and nothing more, with the parts: every call a reply makes is made as a lookup, and
+# the loop never stops.
+FIRST_TWO = KIT_REFERENCE[:KIT_REFERENCE.index("    while True:")] + '''    while True:
+        reply = talk.ask()
+        for call in reply.calls:
+            talk.give(call, talk.run(call))
+            steps += 1
+        talk.send_results()
+'''
+
+
+def test_rules_1_and_2_can_pass_before_the_loop_can_stop(tmp_path):
+    assert shown(a_loop(tmp_path, FIRST_TWO)) == [
+        "ok         1. Ask the model",
+        "ok         2. Make its lookups",
+        "NOT YET    3. Stop with the answer: the model's second reply gave an answer that quotes the "
+        "page it had read, and your loop ran the answer as a lookup.",
+        "NOT YET    4. Stop at the limit: the model's third reply gave an answer of doesn't say, when "
+        "your loop had made 2 lookups, the limit, and your loop asked the model again instead of "
+        "stopping.",
+        "ok         5. Count the lookups",
+    ]
+
+
+# A half-written loop does not stop, so rule 5 looks inside run_agent() for it.
+HALF_BROKEN = {
+    "steps not counted": [("            steps += 1\n", "")],
+    "steps renamed": [],
+}
+
+
+@pytest.mark.parametrize("name, problem", [
+    ("steps not counted", "after the model's first reply, your loop had made one lookup, and its count of "
+                          "lookups was 0 when it asked the model again"),
+    ("steps renamed", "the check could not find `steps` in run_agent(): keep the names of the set-up lines "
+                      "at the top of the function")])
+def test_a_half_written_loop_is_checked_from_inside(tmp_path, name, problem):
+    source = edited(FIRST_TWO, *HALF_BROKEN[name])
+    if name.endswith("renamed"):
+        source = renamed(source, "steps")
+    problems = check_loop.check(a_loop(tmp_path, source))
+    assert problems[:2] == [None] * 2
+    assert problems[4] == problem
+    assert problems.count(problem) == 1      # said once, on the rule that needed it
+
+
+# ---------- one broken loop per rule, and what each line says ----------
+
+BROKEN = {
+    "no assistant turn": (1, [('        messages.append({"role": "assistant", '
+                               '"content": response.content})\n', "")],
+                          ["the model's first reply asked for a search, and the next request "
+                           "your loop sent did not have that reply in the conversation"]),
+    "reply added twice": (1, [('        messages.append({"role": "assistant", "content": response.content})\n',
+                               '        messages.append({"role": "assistant", "content": response.content})\n' * 2)],
+                          ["the model's first reply asked for a search, and the next request "
+                           "your loop sent had that reply in the conversation two times"]),
+    "text block dropped": (1, [('"content": response.content}',
+                                '"content": [b for b in response.content if b.type == "tool_use"]}')],
+                           ["the model's first reply asked for a search, and the next request "
+                            "your loop sent had that reply in the conversation with parts of it "
+                            "missing or changed"]),
+    "no system text": (1, [("system=system, ", "")], ["the first request your loop sent the "
+                                                      "model did not have the text of "
+                                                      "instructions.md as its system text"]),
+    "wrong model": (1, [("model=MODEL,", "model='claude-opus-5-5',")],
+                    ["the first request your loop sent the model named the model "
+                     "'claude-opus-5-5', not 'claude-haiku-5-5'"]),
+    "only the newest turn": (1, [("messages=messages,", "messages=messages[-2:],")],
+                             ["the model's first reply asked for a search, and the next request "
+                              "your loop sent did not hold the whole conversation so far"]),
+    "an empty turn after nothing": (1, [('messages.append({"role": "user", "content": REMINDER})',
+                                         'messages.append({"role": "user", "content": []})')],
+                                    ["the model's first reply had text and no tool call, and the next "
+                                     "request your loop sent had a turn with nothing in it after that "
+                                     "reply, which the Claude API refuses"]),
+    "only the first call": (2, [("for call in calls:", "for call in calls[:1]:")],
+                            ["the model's third reply asked for a wikidata lookup and a read, "
+                             "and your loop made the wikidata lookup only, then asked the model "
+                             "again without making the read"]),
+    "results not sent": (2, [('        messages.append({"role": "user", "content": results})\n', "")],
+                         ["the model's first reply asked for a search and a read, and the next "
+                          "request your loop sent ended with that reply: the results for it had "
+                          "not been sent"]),
+    "wrong id": (2, [('"tool_use_id": call.id', '"tool_use_id": calls[0].id')],
+                 ["the model's first reply asked for a search and a read, and the next request "
+                  "your loop sent held two results for the search"]),
+    "a result as a list": (2, [('"tool_use_id": call.id, "content": result}',
+                                '"tool_use_id": call.id, "content": [{"type": "text", "text": result}]}')],
+                           ["the model's first reply asked for a search and a read, and the "
+                            "result given for the search was a list rather than text"]),
+    "a turn per result": (2, [('            results.append({"type": "tool_result", '
+                               '"tool_use_id": call.id, "content": result})\n',
+                               '            messages.append({"role": "user", "content": [{"type": '
+                               '"tool_result", "tool_use_id": call.id, "content": result}]})\n'),
+                              ('        messages.append({"role": "user", "content": results})\n', "")],
+                          ["the model's first reply asked for a search and a read, and your "
+                           "loop sent the results for that reply in two separate turns, where "
+                           "the model is sent them all together, once every call in the reply "
+                           "has its result"]),
+    "a refused lookup gets no result": (2, [("                warned = True\n",
+                                             "                warned = True\n                continue\n")],
+                                        ["the model's third reply asked for a third search, and "
+                                         "the next request your loop sent held no result for "
+                                         "the search"]),
+    "an answer sent back gets no result": (2, [
+        ('            results.append({"type": "tool_result", "tool_use_id": call.id, "content": result})\n',
+         '            if call.name != "answer":\n'
+         '                results.append({"type": "tool_result", "tool_use_id": call.id, '
+         '"content": result})\n')],
+        ["the model's second reply gave an answer with a quote that is in nothing it had read, "
+         "and the next request your loop sent held no result for the answer"]),
+    "answer not cleaned": (3, [("answer = clean_answer(call.input)", "answer = call.input")],
+                           ["the model's second reply gave an answer with its evidence as one "
+                            "string and no explanation, and your loop stopped with an error at "
+                            "line 53 of my_loop.py: KeyError: 'explanation'"]),
+    "evidence left out": (3, [('return finish(claim, answer["verdict"], answer["evidence"],',
+                               'return finish(claim, answer["verdict"], [],')],
+                          ["the model's second reply gave an answer that quotes the page it had "
+                           "read, and your loop stopped with the evidence [], where this case "
+                           "ends with the evidence ['directed by Robert Zemeckis']"]),
+    "lookups only in the trace": (3, [
+        ('                    trace.append({"tool": "answer", "input": call.input, "result": ACCEPTED})\n', ""),
+        ('                    trace.append({"tool": "answer", "input": call.input, "result": result})\n', ""),
+        ('            trace.append({"tool": call.name, "input": call.input, "result": result})\n', ""),
+        ("                result = lookup(call.name, call.input)\n",
+         "                result = lookup(call.name, call.input)\n"
+         '                trace.append({"tool": call.name, "input": call.input, "result": result})\n')],
+        ["the model's second reply gave an answer that quotes the page it had read, and the "
+         "trace your loop stopped with does not record that answer as accepted"]),
+    # A loop that stops with an error where the plainest loop and the full loop differ, or on a reply
+    # that asks for nothing, does not pass: a full loop damaged by a merge fails where the student sees it.
+    "an error on a reply that asks for nothing": (3, [
+        ('        calls = [block for block in response.content if block.type == "tool_use"]\n',
+         '        calls = [block for block in response.content if block.type == "tool_use"]\n'
+         '        first = calls[0]\n')],
+        ["the model's first reply had text and no tool call, and your loop stopped with an error at "
+         "line 36 of my_loop.py: IndexError: list index out of range"]),
+    "an error on an answer that quotes what was never read": (3, [
+        ("                result = REJECTED + problem\n", "                raise ValueError(problem)\n")],
+        ["the model's second reply gave an answer with a quote that is in nothing it had read, and "
+         "your loop stopped with an error at line 54 of my_loop.py: ValueError: "]),
+    "an error when the model keeps asking at the limit": (4, [
+        ("result = OUT_OF_STEPS.format(n=max_steps)", "result = OUT_OF_STEPS.format(steps=max_steps)")],
+        ["the model's third reply asked for a third search, and your loop stopped with an error at "
+         "line 64 of my_loop.py: KeyError: 'n'"]),
+    "the limit is MAX_STEPS": (4, [("elif steps >= max_steps:", "elif steps >= MAX_STEPS:")],
+                               ["the model's third reply asked for a third search with the "
+                                "limit of 2 lookups reached, and your loop made it: it had made "
+                                "2 lookups before that one"]),
+    "the limit checked one late": (4, [("elif steps >= max_steps:", "elif steps > max_steps:")],
+                                   ["the model's third reply asked for a third search with the "
+                                    "limit of 2 lookups reached, and your loop made it: it had "
+                                    "made 2 lookups before that one"]),
+    "the limit checked one early": (4, [("elif steps >= max_steps:",
+                                         "elif steps >= max_steps - 1:")],
+                                    ["the model's second reply asked for a second search, and "
+                                     "your loop sent back 'You have used all 2 steps. Call answer() "
+                                     "now.' instead of making it, though it had made only 1 "
+                                     "lookup and the limit is 2"]),
+    "never stops at the limit": (4, [("if warned_before:", "if False:")],
+                                 ["the model's fourth reply asked for a fourth search after your "
+                                  "loop had sent back a result for the third search without making "
+                                  "it, and your loop asked the model again instead of stopping: it "
+                                  "had made 2 lookups, the limit"]),
+    "stops in the middle of a reply": (4, [("if warned_before:", "if True:")],
+                                       ["the model's second reply asked for a search and a read in "
+                                        "one reply, when your loop had made 1 lookup and the limit "
+                                        "is 2, so one more lookup was allowed, and your loop made one "
+                                        "of them and stopped instead of asking the model again"]),
+    "lookup not in the trace": (5, [('            trace.append({"tool": call.name, "input": '
+                                     'call.input, "result": result})\n', "")],
+                                ["the model's first reply asked for a search, and the trace "
+                                 "your loop stopped with had no entry for the search"]),
+    "a warned lookup counted": (5, [("                warned = True\n",
+                                     "                warned = True\n                steps += 1\n")],
+                                ["the model's fourth reply asked for a fourth search, and when "
+                                 "your loop stopped its count of lookups was 3, where it had made "
+                                 "two lookups"]),
+}
+
+
+@pytest.mark.parametrize("name", BROKEN)
+def test_a_broken_loop_fails_its_rule_and_says_what_happened(tmp_path, name):
+    rule, edits, phrases = BROKEN[name]
+    printed = shown(a_loop(tmp_path, broken(*edits)))
+    first = next(i for i, line in enumerate(printed, 1) if line.startswith("NOT YET"))
+    assert first == rule, printed
+    line = printed[rule - 1]
+    assert line.startswith(f"NOT YET    {rule}. {check_loop.RULES[rule - 1]}: ")
+    for phrase in phrases:
+        assert phrase in line, line
+    assert line.endswith(".") and "\n" not in line
+
+
+def test_every_broken_rule_is_covered():
+    assert {rule for rule, _, _ in BROKEN.values()} == set(range(1, 6))
+    assert {rule for rule, _, _ in KIT_WRONG.values()} == {2, 4, 5}
 
 
 # ---------- loops written with the parts in loop_parts.py ----------
 
-def kit(*edits):
-    """The reference loop written with the parts, with each (old, new) edit made once."""
-    source = KIT_REFERENCE
-    for old, new in edits:
-        assert source.count(old) == 1, old
-        source = source.replace(old, new)
-    return source
-
-
-def test_the_reference_loop_with_the_parts_does_what_the_old_one_did(tmp_path):
-    """On every made-up check: the same requests to the model, the same lookups, the same end
-    and the same result as the reference loop written straight against the API."""
-    def record(source):
-        path = str(a_loop(tmp_path, source).resolve())
-        module = check_loop.load(path)
-        seen = {}
-        with check_loop.offline(), check_loop.watching_answer_checks(module):
-            for key in check_loop.SCENARIOS:
-                run = check_loop.Run(key, module.run_agent, path)
-                requests = [[{**turn, "content": [check_loop.view(b) if not isinstance(b, dict)
-                                                  else b for b in turn["content"]]}
-                             if isinstance(turn.get("content"), list) else turn
-                             for turn in request["messages"]] for request in run.requests]
-                seen[key] = (requests, run.lookups, run.ended, run.result, run.checked)
-        return seen
-    assert record(KIT_REFERENCE) == record(REFERENCE)
-    assert check_loop.check(a_loop(tmp_path, KIT_REFERENCE)) == [None] * 6
-
-
-KIT_LIMIT = """            elif steps >= max_steps:
-                if warned_before:
-                    # It was told on an earlier reply that it was out of lookups: stop here.
-                    return talk.stop(RAN_OUT, steps)
-                talk.give(call, OUT_OF_STEPS.format(n=max_steps))
-                warned = True
-            else:
-                talk.give(call, talk.run(call))
-                steps += 1
+LIMIT = """        if steps >= max_steps:
+            return talk.stop(RAN_OUT, steps)
+"""
+LOOKUPS = """        for call in reply.lookups:
+            talk.give(call, talk.run(call))
+            steps += 1
+"""
+ANSWER = """        if reply.answer:
+            return talk.accept(reply.answer, steps)
 """
 KIT_WRONG = {
-    "handles only the first call": (2, [("for call in reply.calls:",
-                                         "for call in reply.calls[:1]:")],
+    "handles only the first lookup": (2, [("for call in reply.lookups:", "for call in reply.lookups[:1]:")],
         "the model's third reply asked for a wikidata lookup and a read, and your loop made the "
         "wikidata lookup only, then asked the model again without making the read."),
-    "no result for an answer sent back": (3, [("                talk.give(call, problem)\n", "")],
-        "the model's second reply gave an answer with a quote that is in nothing it had read, "
-        "and the next request your loop sent held no result for the answer."),
-    "results sent inside the for loop": (3, [("""                steps += 1
+    "results sent inside the for loop": (2, [("""            steps += 1
         talk.send_results()
-""", """                steps += 1
+""", """            steps += 1
             talk.send_results()
 """)],
         "the model's first reply asked for a search and a read, and your loop sent the results "
         "for that reply in two separate turns, where the model is sent them all together, once "
         "every call in the reply has its result."),
-    "the limit checked after running the lookup": (5, [(KIT_LIMIT, """            else:
-                found = talk.run(call)
-                steps += 1
-                if steps > max_steps:
-                    if warned_before:
-                        return talk.stop(RAN_OUT, steps)
-                    talk.give(call, OUT_OF_STEPS.format(n=max_steps))
-                    warned = True
-                else:
-                    talk.give(call, found)
+    "no results sent": (2, [("        talk.send_results()\n", "")],
+        "the model's first reply asked for a search and a read, and the next request your loop "
+        "sent ended with that reply: the results for it had not been sent."),
+    "the limit looked at before the answer": (4, [(ANSWER + LIMIT, LIMIT + ANSWER)],
+        "the model's third reply gave an answer of doesn't say, when your loop had made 2 lookups, "
+        "the limit, and your loop stopped with no verdict, where this case ends with the verdict "
+        "\"doesn't say\"."),
+    "the limit looked at for each lookup": (4, [(LIMIT + LOOKUPS, """        for call in reply.lookups:
+            if steps >= max_steps:
+                return talk.stop(RAN_OUT, steps)
+            talk.give(call, talk.run(call))
+            steps += 1
 """)],
-        "the model's third reply asked for a third search with the limit of 2 lookups reached, "
-        "and your loop made it: it had made 2 lookups before that one; in another made-up check "
-        "the model asked for one search in each of 6 replies, and your loop first sent back the "
-        "warning for the third search, which it also made."),
-    "stops at the limit without the warning": (5, [("""                if warned_before:
-                    # It was told on an earlier reply that it was out of lookups: stop here.
-                    return talk.stop(RAN_OUT, steps)
-                talk.give(call, OUT_OF_STEPS.format(n=max_steps))
-                warned = True
-""", """                return talk.stop(RAN_OUT, steps)
+        "the model's second reply asked for a search and a read in one reply, when your loop had "
+        "made 1 lookup and the limit is 2, so one more lookup was allowed, and your loop made one "
+        "of them and stopped instead of asking the model again."),
+    "no limit": (4, [(LIMIT, "")],
+        "the model's third reply asked for a third search with the limit of 2 lookups reached, and "
+        "your loop made it: it had made 2 lookups before that one."),
+    "the limit looked at after the lookups": (4, [(LIMIT + LOOKUPS, LOOKUPS + LIMIT)],
+        "the model's second reply asked for a second search, and your loop made it and then "
+        "stopped without asking the model again, though the model had not asked for more than "
+        "the limit of 2 lookups."),
+    "the wrong sentence at the limit": (4, [("talk.stop(RAN_OUT, steps)", "talk.stop(NO_ANSWER, steps)"),
+                                            ("RAN_OUT, run_tool", "RAN_OUT, NO_ANSWER, run_tool")],
+        "the model's third reply asked for a third search with the limit of 2 lookups reached, and "
+        "your loop stopped with the explanation 'The agent stopped without answering.', where this "
+        "case ends with the explanation 'The agent ran out of steps.'."),
+    "counts each reply, not each lookup": (5, [("""            talk.give(call, talk.run(call))
+            steps += 1
+""", """            talk.give(call, talk.run(call))
+        steps += 1
 """)],
-        "the model's third reply asked for a third search with the limit of 2 lookups reached, "
-        "and your loop stopped instead of sending back the warning: it had made 2 lookups, the "
-        "limit, and this was the first time the model asked for one more."),
-    "checks the limit once per reply": (5, [
-        ("        warned_before = warned\n",
-         "        warned_before = warned\n        over = steps >= max_steps\n"),
-        ("            elif steps >= max_steps:", "            elif over:")],
-        "the model's second reply asked for a search and a read in one reply, when your loop "
-        "had made 1 lookup and the limit is 2, so one more lookup was allowed, and your loop "
-        "made both, the second as lookup number 3."),
-    "reminder memory never reset": (6, [("        reminded = False\n\n", "\n")],
-        "the model's first reply asked for nothing and your loop reminded it, its second reply "
-        "asked for a search, and its third reply asked for nothing again; your loop stopped "
-        "there instead of reminding the model again."),
-    "reminds again and again": (6, [("""            if reminded:
-                return talk.stop(NO_ANSWER, steps)
-""", "")],
-        "the model's second reply had text and no tool call again, and your loop asked the "
-        "model a third time instead of stopping."),
-    "sends results after the reminder too": (6, [("""            reminded = True
-            continue
-""", """            reminded = True
-""")],
-        "the model's first reply had text and no tool call, and your loop sent the model the "
-        "reminder and also an empty turn of results, where the reminder is all it is sent."),
+        "the model asked for four lookups before its answer, and when your loop stopped its count "
+        "of lookups was 3."),
 }
 
 
@@ -1064,19 +1152,59 @@ def test_a_wrong_loop_with_the_parts_gets_a_sentence_about_what_it_did(tmp_path,
     assert printed[rule - 1] == f"NOT YET    {rule}. {check_loop.RULES[rule - 1]}: {sentence}"
 
 
-def test_stopping_on_the_last_failed_answer_before_giving_it_a_result_passes(tmp_path):
-    """The parts record every answer when it is checked, so a loop that stops on the third failed
-    answer before giving it a result still leaves a complete trace, and passes."""
-    source = kit(("""                talk.give(call, problem)
-                rejected += 1
-                if rejected >= MAX_REJECTED:
-                    return talk.stop(REJECTED_TOO_OFTEN.format(n=rejected), steps)
-""", """                rejected += 1
-                if rejected >= MAX_REJECTED:
-                    return talk.stop(REJECTED_TOO_OFTEN.format(n=rejected), steps)
-                talk.give(call, problem)
-"""))
-    assert check_loop.check(a_loop(tmp_path, source)) == [None] * 6
+# The made-up checks of the six rules that the five no longer have: a reminder, two stalls, a
+# refusal, answers sent back, and two lookups at the limit. On them, and on the five's, the full
+# loop with the parts as they are now does exactly what the raw loop does, as it did before: the one
+# difference is the trace entry for a refusal, which the parts now record.
+def old_reply(says, *blocks, stop=None):
+    return check_loop.reply(says, *blocks, stop=stop)
+
+
+OLD_SCENARIOS = {
+    "remind": ([old_reply(check_loop.NO_TOOL, check_loop.text("I think the claim is true.")),
+                old_reply(check_loop.SAYS_NOT, check_loop.NOT_SAID)], check_loop.PLENTY),
+    "no_answer": ([old_reply(check_loop.NO_TOOL, check_loop.text("I think the claim is true.")),
+                   old_reply(check_loop.NO_TOOL, check_loop.text("It is true.")),
+                   old_reply(check_loop.NO_TOOL, check_loop.text("True."))], check_loop.PLENTY),
+    "remind_twice": ([old_reply("asked for nothing", check_loop.text("I think the claim is true.")),
+                      old_reply("asked for a search", check_loop.search("Forrest Gump")),
+                      old_reply("asked for nothing again", check_loop.text("It is true.")),
+                      old_reply(check_loop.SAYS_NOT, check_loop.NOT_SAID)], check_loop.PLENTY),
+    "refusal": ([old_reply("refused", check_loop.text("I can't help with that."), stop="refusal"),
+                 old_reply(check_loop.SAYS_NOT, check_loop.NOT_SAID)], check_loop.PLENTY),
+    "reject_often": ([old_reply(check_loop.QUOTES_NOTHING, check_loop.MADE_UP)] * 12, check_loop.PLENTY),
+    "limit_pair": ([old_reply("asked for a search", check_loop.search("Forrest Gump")),
+                    old_reply("asked for a second search", check_loop.search("Robert Zemeckis")),
+                    old_reply("asked for a search and a read", check_loop.search("Zemeckis Chicago"),
+                              check_loop.read("Robert Zemeckis")),
+                    old_reply(check_loop.SAYS_NOT, check_loop.NOT_SAID)], 2),
+}
+
+
+def test_the_full_loop_with_the_parts_does_what_the_raw_loop_does(tmp_path, monkeypatch):
+    """On every made-up check, old and new: the same requests to the model, the same lookups, the
+    same end and the same result as the raw loop written straight against the API."""
+    monkeypatch.setattr(check_loop, "SCENARIOS", {**check_loop.SCENARIOS, **OLD_SCENARIOS})
+
+    def record(source):
+        path = str(a_loop(tmp_path, source).resolve())
+        module = check_loop.load(path)
+        seen = {}
+        with check_loop.offline():
+            for key in check_loop.SCENARIOS:
+                run = check_loop.Run(key, module.run_agent, path)
+                requests = [[{**turn, "content": [check_loop.view(b) if not isinstance(b, dict)
+                                                  else b for b in turn["content"]]}
+                             if isinstance(turn.get("content"), list) else turn
+                             for turn in request["messages"]] for request in run.requests]
+                seen[key] = (requests, run.lookups, run.ended, run.result)
+        return seen
+    whole, raw = record(FULL_LOOP), record(REFERENCE)
+    refusal = whole.pop("refusal"), raw.pop("refusal")
+    assert whole == raw
+    assert refusal[0][:3] == refusal[1][:3]
+    assert refusal[0][3]["trace"] == [{"tool": "(refusal)", "input": {}, "result": agent.DECLINED}]
+    assert refusal[1][3]["trace"] == [] and refusal[0][3]["explanation"] == refusal[1][3]["explanation"]
 
 
 def test_the_parts_record_each_answer_once_whatever_the_order(tmp_path):
@@ -1097,50 +1225,64 @@ def test_the_parts_record_each_answer_once_whatever_the_order(tmp_path):
     assert trace[0] == {"tool": "answer", "input": block.input, "result": problem}
 
 
+def test_the_check_of_quotes_is_a_part_a_loop_may_add(tmp_path):
+    """talk.problem_with() stays, documented, for a student who adds the check through their
+    outline (step 3b): the plainest loop with it added passes, and sends the answer back."""
+    import loop_parts
+    assert "talk.problem_with(call)" in loop_parts.__doc__
+    source = kit((ANSWER, """        if reply.answer:
+            problem = talk.problem_with(reply.answer)
+            if problem is None:
+                return talk.accept(reply.answer, steps)
+            talk.give(reply.answer, problem)
+"""))
+    path = a_loop(tmp_path, source)
+    assert check_loop.check(path) == [None] * 5
+    module = check_loop.load(str(path.resolve()))
+    with check_loop.offline():
+        run = check_loop.Run("unread", module.run_agent, str(path.resolve()))
+    assert run.result["verdict"] == "doesn't say" and len(run.requests) == 3
+
+
 def test_a_loop_written_before_the_parts_still_passes_in_the_new_my_loop(tmp_path):
     """A student who started 1a before it changed wrote Python against the old starter file. Their
     loop, below the line of the new my_loop.py, must still pass: the new file imports every name
-    the old one did."""
+    the old one did, and keeps every set-up line."""
     skeleton = (ROOT / "my_loop.py").read_text()
     marker = '    raise NotImplementedError("The loop is not written yet: see step 1a.")\n'
     assert skeleton.count(marker) == 1
     body = REFERENCE[REFERENCE.index("    warned = False"):]
-    assert check_loop.check(a_loop(tmp_path, skeleton.replace(marker, body))) == [None] * 6
-
-
-def test_every_broken_rule_is_covered():
-    assert {rule for rule, _, _ in BROKEN.values()} == set(range(1, 7))
+    assert check_loop.check(a_loop(tmp_path, skeleton.replace(marker, body))) == [None] * 5
+    # And the full loop's body, which uses rejected from the set-up lines.
+    body = FULL_LOOP[FULL_LOOP.index("    warned = False"):]
+    assert check_loop.check(a_loop(tmp_path, skeleton.replace(marker, body))) == [None] * 5
 
 
 # ---------- the token line: the extra credit in step 3b ----------
 
 # The instructor, Nov 11: "have it gone entirely. for the extra credit we can have the student go
-# back and add it?" The reference loop with the count added as step 3b asks: a tokens dict, each
-# reply's usage added to it, and tokens passed to finish() as its last argument.
+# back and add it?" The raw loop with the count added as step 3b asks: a tokens dict, each reply's
+# usage added to it, and tokens passed to finish() as its last argument.
 TOKENS = ('        tokens["input"] += response.usage.input_tokens\n'
           '        tokens["output"] += response.usage.output_tokens\n')
 TURN = '        messages.append({"role": "assistant", "content": response.content})\n'
+REFUSAL = ('        if response.stop_reason == "refusal":\n'
+           '            return finish(claim, None, [], DECLINED, trace, steps)\n')
 COUNTING = broken(("    steps = 0\n", '    tokens = {"input": 0, "output": 0}\n    steps = 0\n'),
                   (TURN, TOKENS + TURN)).replace("trace, steps)", "trace, steps, tokens)")
 TOKEN_LINE = f"ok         {agent.TOKEN_RULE}"
 
 
 def counting(*edits):
-    source = COUNTING
-    for old, new in edits:
-        assert source.count(old) == 1, old
-        source = source.replace(old, new)
-    return source
+    return edited(COUNTING, *edits)
 
 
-def test_a_loop_that_counts_tokens_gets_the_token_line_and_turns_on_cost(tmp_path, monkeypatch, saved,
-                                                                       capsys):
+def test_a_loop_that_counts_tokens_gets_the_token_line_and_turns_on_cost(tmp_path, monkeypatch, saved, capsys):
     assert COUNTING.count("trace, steps, tokens)") == 5
     a_loop(tmp_path, COUNTING, monkeypatch)
     assert check_loop.main([]) == 0
     printed = capsys.readouterr().out.splitlines()
-    assert printed == [f"ok         {n}. {title}" for n, title in enumerate(check_loop.RULES, 1)] \
-        + [TOKEN_LINE, "", check_loop.PASSED]
+    assert printed == FIVE + [TOKEN_LINE, "", check_loop.PASSED]
     assert saved.read_text().splitlines() == ["yours"] + printed
     assert agent.which_loop() == "yours" and agent.counts_tokens()
     # Without the count again, the loop still passes, and tokens and cost are hidden again.
@@ -1151,7 +1293,7 @@ def test_a_loop_that_counts_tokens_gets_the_token_line_and_turns_on_cost(tmp_pat
 def test_a_loop_written_with_the_old_order_of_finish_still_counts(tmp_path):
     """Before Nov 12, finish() took tokens, then steps. A loop written then still passes."""
     old = COUNTING.replace("trace, steps, tokens)", "trace, tokens, steps)")
-    assert check_loop.check(a_loop(tmp_path, old)) == [None] * 7
+    assert check_loop.check(a_loop(tmp_path, old)) == [None] * 6
     assert agent.finish("c", None, [], "x", [], {"input": 2, "output": 1}, 3)["steps"] == 3
 
 
@@ -1161,11 +1303,8 @@ TOKEN_BROKEN = {
                    "where its three replies used 4,266 input and 132 output tokens"]),
     "output not counted": ([('        tokens["output"] += response.usage.output_tokens\n', "")],
                            ["stopped with tokens {'input': 4266, 'output': 0}"]),
-    "refusal tokens not counted": ([(TOKENS + TURN, TURN), (REFUSAL.replace("steps)", "steps, tokens)"),
-                                                            REFUSAL.replace("steps)", "steps, tokens)") + TOKENS)],
-                                   ["refused to check the claim", "stopped with tokens"]),
-    "one result without them": ([("DECLINED, trace, steps, tokens)", "DECLINED, trace, steps)")],
-                                ["refused to check the claim", "stopped with tokens None"]),
+    "one result without them": ([("RAN_OUT, trace, steps, tokens)", "RAN_OUT, trace, steps)")],
+                                ["the model's fourth reply asked for a fourth search", "stopped with tokens None"]),
 }
 
 
@@ -1174,11 +1313,11 @@ def test_a_wrong_count_fails_the_token_line_and_nothing_else(tmp_path, monkeypat
     edits, phrases = TOKEN_BROKEN[name]
     path = a_loop(tmp_path, counting(*edits), monkeypatch)
     printed = shown(path)
-    assert printed[:6] == [f"ok         {n}. {title}" for n, title in enumerate(check_loop.RULES, 1)]
-    assert printed[6].startswith(f"NOT YET    {agent.TOKEN_RULE}: ")
+    assert printed[:5] == FIVE
+    assert printed[5].startswith(f"NOT YET    {agent.TOKEN_RULE}: ")
     for phrase in phrases:
-        assert phrase in printed[6], printed[6]
-    assert len(printed) == 7
+        assert phrase in printed[5], printed[5]
+    assert len(printed) == 6
     # A wrong count fails the check: the agent stops, and tokens and cost stay hidden.
     saved.parent.mkdir(parents=True)
     saved.write_text("yours\n")
@@ -1186,52 +1325,63 @@ def test_a_wrong_count_fails_the_token_line_and_nothing_else(tmp_path, monkeypat
     assert agent.which_loop() == "not passed" and not agent.counts_tokens()
 
 
-# The same count in a loop built with the parts (step 3b): each reply's usage added up, and the
-# count passed last to talk.accept() and talk.stop().
-KIT_COUNTING = kit(("    rejected = 0        # answers sent back so far\n",
-                    "    rejected = 0        # answers sent back so far\n"
+# The same count in the plainest loop built with the parts (step 3b): each reply's usage added up,
+# and the count passed last to talk.accept() and talk.stop().
+KIT_COUNTING = kit(("    steps = 0           # lookups made so far\n",
+                    "    steps = 0           # lookups made so far\n"
                     '    tokens = {"input": 0, "output": 0}\n'),
                    ("        reply = talk.ask()\n",
                     "        reply = talk.ask()\n"
                     '        tokens["input"] += reply.usage.input_tokens\n'
                     '        tokens["output"] += reply.usage.output_tokens\n')
                    ).replace(", steps)", ", steps, tokens)")
+FULL_COUNTING = full(("    rejected = 0        # answers sent back so far\n",
+                      "    rejected = 0        # answers sent back so far\n"
+                      '    tokens = {"input": 0, "output": 0}\n'),
+                     ("        reply = talk.ask()\n",
+                      "        reply = talk.ask()\n"
+                      '        tokens["input"] += reply.usage.input_tokens\n'
+                      '        tokens["output"] += reply.usage.output_tokens\n')
+                     ).replace(", steps)", ", steps, tokens)")
 
 
-def test_a_loop_built_with_the_parts_can_count_tokens(tmp_path, monkeypatch, saved, capsys):
-    assert KIT_COUNTING.count(", steps, tokens)") == 5
-    a_loop(tmp_path, KIT_COUNTING, monkeypatch)
+@pytest.mark.parametrize("source", [KIT_COUNTING, FULL_COUNTING], ids=["the-plainest-loop", "the-full-loop"])
+def test_a_loop_built_with_the_parts_can_count_tokens(tmp_path, monkeypatch, saved, capsys, source):
+    """Its count holds the tokens of both of ask()'s calls when ask() reminds the model (the made-up
+    check of a reply that asks for nothing)."""
+    assert KIT_COUNTING.count(", steps, tokens)") == 2 and FULL_COUNTING.count(", steps, tokens)") == 5
+    a_loop(tmp_path, source, monkeypatch)
     assert check_loop.main([]) == 0
     printed = capsys.readouterr().out.splitlines()
-    assert printed == [f"ok         {n}. {title}" for n, title in enumerate(check_loop.RULES, 1)] \
-        + [TOKEN_LINE, "", check_loop.PASSED]
+    assert printed == FIVE + [TOKEN_LINE, "", check_loop.PASSED]
     assert agent.which_loop() == "yours" and agent.counts_tokens()
 
 
 @pytest.mark.parametrize("old, new, phrase", [
     ('        tokens["output"] += reply.usage.output_tokens\n', "",
      "stopped with tokens {'input': 4266, 'output': 0}"),
-    ("talk.stop(DECLINED, steps, tokens)", "talk.stop(DECLINED, steps)",
-     "the model's first reply refused to check the claim, and your loop stopped with tokens None"),
+    ("talk.stop(RAN_OUT, steps, tokens)", "talk.stop(RAN_OUT, steps)",
+     "the model's third reply asked for a third search, and your loop stopped with tokens None"),
 ])
 def test_a_wrong_count_with_the_parts_fails_the_token_line_only(tmp_path, old, new, phrase):
     assert KIT_COUNTING.count(old) == 1
     printed = shown(a_loop(tmp_path, KIT_COUNTING.replace(old, new)))
-    assert printed[:6] == [f"ok         {n}. {title}" for n, title in enumerate(check_loop.RULES, 1)]
-    assert printed[6].startswith(f"NOT YET    {agent.TOKEN_RULE}: ") and phrase in printed[6], printed[6]
+    assert printed[:5] == FIVE
+    assert printed[5].startswith(f"NOT YET    {agent.TOKEN_RULE}: ") and phrase in printed[5], printed[5]
 
 
 def test_the_parts_count_nothing_by_themselves(tmp_path):
     """A loop built with the parts, as 1a leaves it, passes no count: no token line, no cost."""
-    assert check_loop.check(a_loop(tmp_path, KIT_REFERENCE)) == [None] * 6
+    assert check_loop.check(a_loop(tmp_path, KIT_REFERENCE)) == [None] * 5
 
 
 def test_counts_tokens_follows_the_file(saved):
-    six = [f"ok         {n}. {title}" for n, title in enumerate(check_loop.RULES, 1)]
     assert not agent.counts_tokens()                     # no file
     saved.parent.mkdir(parents=True)
-    for lines, counts in ((["yours"] + six + [TOKEN_LINE], True), (["yours"] + six, False),
-                          (["not passing", check_loop.FELL_BACK] + six + [TOKEN_LINE], False),
+    six = FIVE + ["ok         6. Stop when the model stops"]     # a file the six rules wrote
+    for lines, counts in ((["yours"] + FIVE + [TOKEN_LINE], True), (["yours"] + FIVE, False),
+                          (["yours"] + six + [TOKEN_LINE], True),
+                          (["not passing", check_loop.FELL_BACK] + FIVE + [TOKEN_LINE], False),
                           (["yours", f"NOT YET    {agent.TOKEN_RULE}: x."], False)):
         saved.write_text("\n".join(lines) + "\n")
         assert agent.counts_tokens() is counts, lines
@@ -1256,8 +1406,8 @@ def test_an_error_is_reported_with_its_line(tmp_path):
         "NOT YET    1. Ask the model: the model's first reply asked for a search, and your loop "
         f"stopped with an error at line {line} of my_loop.py: AttributeError: 'ToolUseBlock' "
         "object has no attribute 'inputs'.")
-    # Rule 6's stall case makes a lookup, so it meets the same error.
-    assert "AttributeError: 'ToolUseBlock' object has no attribute 'inputs'" in printed[5]
+    # Rule 2's made-up check makes a lookup, so it meets the same error.
+    assert "AttributeError: 'ToolUseBlock' object has no attribute 'inputs'" in printed[1]
 
 
 def test_a_loop_that_never_stops_is_reported(tmp_path, monkeypatch):
@@ -1282,19 +1432,19 @@ def test_a_loop_that_keeps_asking_the_model_is_stopped(tmp_path):
     start = time.monotonic()
     problems = check_loop.check(a_loop(tmp_path, source))
     assert time.monotonic() - start < check_loop.TIME_LIMIT
-    assert problems[3].endswith("gave an answer that quotes the page it had read, and your loop "
+    assert problems[2].endswith("gave an answer that quotes the page it had read, and your loop "
                                 "asked the model again instead of stopping")
 
 
 def test_a_file_that_will_not_load_is_reported_on_every_line(tmp_path):
     problems = check_loop.check(a_loop(tmp_path, "def run_agent(claim:\n    pass\n"))
-    assert len(set(problems)) == 1
+    assert len(set(problems)) == 1 and len(problems) == 5
     assert problems[0].startswith("my_loop.py could not be loaded, because of an error at line 1: "
                                   "SyntaxError")
     problems = check_loop.check(a_loop(tmp_path, "import nothing_called_this\n"))
     assert "line 1: ModuleNotFoundError" in problems[0]
     problems = check_loop.check(a_loop(tmp_path, "def run(claim):\n    pass\n"))
-    assert problems == ["my_loop.py has no function called run_agent"] * 6
+    assert problems == ["my_loop.py has no function called run_agent"] * 5
 
 
 def test_the_check_has_no_network_and_hides_what_the_loop_prints(tmp_path, monkeypatch, capsys):

@@ -15,7 +15,7 @@ sends back what they return, and stops.
 **Words in this step:** A *tool* is one of the four things the agent can call: `search`, `read`,
 `wikidata` and `answer`. A *lookup* is a call to one of the first three. A *reply* is what the model sends
 back each time it is asked. A *result* is what the loop sends the model for one tool call. *The check*,
-`check_loop.py`, runs your loop in fifteen made-up cases, with a stand-in for the model and for
+`check_loop.py`, runs your loop in eleven made-up cases, with a stand-in for the model and for
 Wikipedia, at no cost. *The reference loop*, `reference_loop.py`, is a loop I wrote that the agent uses
 only in Part 0; do not open it before your loop passes the check.
 
@@ -31,20 +31,19 @@ only in Part 0; do not open it before your loop passes the check.
 
 **Background:** The model cannot look anything up by itself, and it remembers nothing between calls:
 each time it is asked, it sees only what it is sent. All it can do is reply. A reply can ask for one or
-more lookups (`search`, `read`, `wikidata`), give an `answer`, or ask for nothing.
+more lookups (`search`, `read`, `wikidata`), or give an `answer`. If it does neither, the parts in
+`loop_parts.py` remind the model to answer, so your loop does not have to.
 
 Your loop should repeatedly call the model with the message history so far, and ask for its next step.
-It should make the lookups that step asks for, and add what they return to the history. It should check
-whether the model has given an answer that can be accepted yet. It should also pay attention to its
-limits: a claim that runs out of lookups, or of tries at an answer, may end undecided.
+It should check whether the model has given an answer yet. If not, it should make the lookups that step
+asks for, and add what they return to the history. It should also pay attention to whether the loop has
+reached its limit: a claim that runs out of lookups cannot be decided.
 
-Two limits are set for you: the agent makes at most 12 lookups for a claim, and at most 3 of its answers
-may fail the evidence check. The evidence check looks at an answer and says what is wrong with it, or
-that nothing is: every sentence it quotes must be in something the agent read.
+One limit is set for you: 12 lookups for a claim.
 
-You will not know every rule when you start. The check runs your loop in made-up cases, and when your
-design breaks a rule, the check states that rule. Meeting the rules this way is how this step is meant
-to go.
+You will not know every detail of the rules when you start. The check runs your loop in made-up cases,
+and when your design breaks a rule, the check states that rule. Meeting the rules this way is how this
+step is meant to go.
 
 **Writing your outline:**
 
@@ -72,15 +71,14 @@ to go.
 uv run python check_loop.py
 ```
 
-It prints `ok` or `NOT YET` for each of six rules, and under them, after "The rule", it states the rule
+It prints `ok` or `NOT YET` for each of five rules, and under them, after "The rule", it states the rule
 behind the first `NOT YET` line. A `NOT YET` line says what the stand-in model did and what your loop
 did, as in this run partway through:
 
 ```
 ok         1. Ask the model
-ok         2. Run its lookups
-ok         3. Send the results back
-NOT YET    4. Check the answer: the model's second reply gave an answer that quotes the page it had read, and your loop ran it as a lookup.
+ok         2. Make its lookups
+NOT YET    3. Stop with the answer: the model's second reply gave an answer that quotes the page it had read, and your loop ran the answer as a lookup.
 ```
 
 When every rule passes, the check saves `runs/part1/loop-check.txt`, and from then on your copy's agent
@@ -102,9 +100,9 @@ under it.
 - You wrote Python in `my_loop.py` before this step changed. You may finish it that way, and write the
   outline of your finished loop in `WRITEUP.md` all the same.
 
-**Hint:** Start with the plainest case: the model asks for one lookup, then gives an answer that passes.
-Then ask what your outline does when the model does something else: asks for two things at once, quotes
-something it never read, keeps asking for lookups, asks for nothing. You may also write the Python
+**Hint:** Start with the plainest case: the model asks for one lookup, then gives an answer. Then ask
+what your outline does when the model does something else: asks for two lookups at once, asks for a
+lookup and gives an answer in the same reply, keeps asking for lookups. You may also write the Python
 yourself; the outline is still what I read.
 
 ## 1b. Be the agent

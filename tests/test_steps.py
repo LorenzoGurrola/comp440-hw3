@@ -334,7 +334,7 @@ def test_3b_starts_with_token_counting(a):
                  "- You wrote your loop's Python yourself: keep the count as",
                  "and pass `tokens` last in every `talk.accept(...)` and `talk.stop(...)`",
                  "Apart from the token count, leave your outline and your loop as they passed the check",
-                 'The line "Count the tokens (extra credit)", printed after the six rules, must say `ok`',
+                 'The line "Count the tokens (extra credit)", printed after the five rules, must say `ok`',
                  "It should take about 2 hours.",
                  'The agent\'s cost per claim is under "Cost" for `runs/part3/after` in the results viewer, and '
                  'the one-search baseline\'s is under "Cost" for `runs/part2`.'):
@@ -938,6 +938,30 @@ def test_1a_translates_the_outline_and_adds_nothing(a):
                  "history",
                  "cannot be opened from any session"):
         assert must in tutor, must
+
+
+def test_1a_brief_gives_the_five_rules_and_what_the_parts_do(a):
+    """Nov 14, the instructor: the loop "to its bare essentials", "including the out of turns check".
+    The brief gives Claude the five rules the check states, says what the parts do so that no rule
+    asks for it, and keeps the parts for a loop that does more, without Claude suggesting them."""
+    import check_loop
+    brief = flat(a.step("1a").brief)
+    for n, title in enumerate(check_loop.RULES, 1):
+        assert f"{n}. {title}." in brief, title
+    assert "6. " not in brief
+    for must in ("the one limit (12 lookups), with nothing about what the loop does at it",
+                 "The limit is looked at once a reply, before its lookups are made",
+                 "one reply can take the count past the limit",
+                 "If a reply asks for nothing, talk.ask() reminds the model to answer and asks once more.",
+                 "you never suggest any of these",
+                 '"The answer it gave" is reply.answer, or None if it gave none.',
+                 '"Stop with no verdict" at the limit is return talk.stop(RAN_OUT, steps).',
+                 "Only for an outline that does more than the rules ask",
+                 "Coach the student toward a structure that meets the five rules"):
+        assert must in brief, must
+    for gone in ("Check the answer.", "Enforce the limit.", "Stop when the model stops.", "the six rules",
+                 "the two limits", "3 failed answers", "what the evidence check is", "the reminder; the refusal"):
+        assert gone not in brief, gone
 
 
 # What the old rule said (until Nov 11): Claude did not write the loop and did not edit my_loop.py.

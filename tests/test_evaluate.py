@@ -175,8 +175,8 @@ def test_runs_with_no_verdict_finish_the_run_and_the_line_says_where_the_viewer_
     monkeypatch.setitem(evaluate.METHODS, "agent", two_without)
     _, out_dir = run_main(monkeypatch, tmp_path)
     printed = capsys.readouterr().out
-    line = ("2 runs gave no verdict (for example a refusal, out of lookups or its answer rejected three "
-            "times). They count as wrong. The results viewer lists them on this run's page, under "
+    line = ("2 runs gave no verdict (for example a refusal, or out of lookups). They count as wrong. "
+            "The results viewer lists them on this run's page, under "
             "\"Claims with no verdict, or that stopped with an error\".")
     assert line in printed
     assert (out_dir / "report.txt").read_text().rstrip().endswith(line)    # finished: report.txt saved
@@ -196,6 +196,20 @@ def test_lookup_with_no_log_prints_but_does_not_add_to_the_record(monkeypatch, t
     assert "Page: Saint Paul, Minnesota" in printed
     assert "lookups.jsonl" not in printed
     assert not (tmp_path / "lookups.jsonl").exists()
+
+
+def test_the_agents_results_carry_the_limit_they_ran_under(monkeypatch, tmp_path, capsys):
+    """A loop that does not warn the model can pass its limit within one reply (Nov 14), so the
+    results viewer cannot tell the limit from the counts: each of the agent's results carries it."""
+    monkeypatch.setitem(evaluate.METHODS, "agent", always_supported)
+    monkeypatch.setitem(evaluate.METHODS, "no-tools", always_supported)
+    monkeypatch.setattr(evaluate.agent, "MAX_STEPS", 9)
+    evaluate.run_method("agent", ITEMS[:2], tmp_path, workers=1)
+    evaluate.run_method("no-tools", ITEMS[:2], tmp_path, workers=1)
+    rows = [json.loads(line) for line in (tmp_path / "agent.jsonl").read_text().splitlines()]
+    assert [row["max_steps"] for row in rows] == [9, 9]
+    rows = [json.loads(line) for line in (tmp_path / "no-tools.jsonl").read_text().splitlines()]
+    assert not any("max_steps" in row for row in rows)
 
 
 def test_check_setup_says_what_is_missing_and_never_prints_the_key(monkeypatch, tmp_path, capsys):

@@ -33,10 +33,10 @@ you know which page to read next. You will study how the agent
 breaks a claim into pieces, looks up each one, and synthesizes the results. 
 
 In Part 1 you design the loop around the model, the program that makes it an agent. Your loop should
-repeatedly call the model with the message history so far, and ask for its next step. It should make the
-lookups that step asks for, and add what they return to the history. It should check whether the model
-has given an answer that can be accepted yet. It should also pay attention to its limits: a claim that
-runs out of lookups, or of tries at an answer, may end undecided.
+repeatedly call the model with the message history so far, and ask for its next step. It should check
+whether the model has given an answer yet. If not, it should make the lookups that step asks for, and add
+what they return to the history. It should also pay attention to whether the loop has reached its limit:
+a claim that runs out of lookups cannot be decided.
 
 ## What you need before you start
 
@@ -139,7 +139,7 @@ hours more, and its run about 6 minutes.
   step 1a, and **the reference loop**, `reference_loop.py`, until then. In the loop, the model picks the
   next lookup, reads what comes back, and decides when to answer.
 - A **tool** is one of the four things the agent can call: `search`, `read`, `wikidata` and `answer`. A
-  **lookup** is a call to one of the first three. The loop allows at most 12 lookups for one claim.
+  **lookup** is a call to one of the first three. The agent's limit is 12 lookups for one claim.
 - A **trace** is the agent's lookups for one claim, in order, with what each returned. An **entry** is
   one numbered line of a trace, a lookup or an answer.
 - **The model** is Claude Haiku, the small LLM that the agent and both baselines call. **Claude** is your

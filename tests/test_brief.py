@@ -194,15 +194,10 @@ def test_no_placeholder_is_left(name):
 
 # ---- step 1a: the student writes the loop -----------------------------------------------------
 
-# The six rules, word for word as the page gives them (the check prints their titles).
-LOOP_RULES = [
-    '1. **Ask the model.** The model remembers nothing between calls. Each time the loop asks it, the loop sends the whole conversation so far: the claim, every reply the model gave, and every result and reminder the loop sent back.',
-    '2. **Run its lookups.** One reply can ask for one lookup or for several. The loop runs each one and counts it. What `read` and `wikidata` return counts as read by the agent; what `search` returns does not.',
-    '3. **Send the results back.** Everything a reply asks for gets a result, and the model is sent all of them together, in one message, before it is asked again.',
-    '4. **Check the answer.** An answer is not a lookup: it is not run and not counted. When a reply gives an answer, the evidence check decides. If it finds no problem, the loop stops with that answer. If it finds a problem, the result sent back is that problem, so that the model can try again. After 3 answers with a problem (`MAX_REJECTED` in `agent.py`), the loop stops with no verdict.',
-    '5. **Enforce the limit.** After 12 lookups (`MAX_STEPS` in `agent.py`) the loop runs no more. In the first reply that asks for another, every lookup gets a warning as its result and is not run. If a later reply asks for a lookup again, the loop stops with no verdict.',
-    '6. **Stop when the model stops.** If a reply asks for nothing, the loop sends the model a reminder to answer. If the next reply asks for nothing either, the loop stops with no verdict. If the model refuses, the loop stops with no verdict at once, with no reminder.',
-]
+# The titles of the check's five rules (Nov 14), and of the six they replaced. The page lists none.
+LOOP_RULE_TITLES = ["Ask the model", "Make its lookups", "Stop with the answer", "Stop at the limit",
+                    "Count the lookups", "Run its lookups", "Send the results back", "Check the answer",
+                    "Enforce the limit", "Stop when the model stops"]
 
 
 def section_1a():
@@ -210,13 +205,14 @@ def section_1a():
 
 
 # The instructor's description of the loop (Nov 13: "could we have a prose description instead?"),
-# lightly clarified. It is in 1a's Background, above the line in my_loop.py, in the README, and in
-# 1a's brief, word for word.
+# lightly clarified, and made true of the plainest loop on Nov 14 ("i want to simplify the agent
+# loop to its bare essentials"). It is in 1a's Background, above the line in my_loop.py, in the
+# README, and in 1a's brief, word for word.
 LOOP_DESCRIPTION = (
     "Your loop should repeatedly call the model with the message history so far, and ask for its next "
-    "step. It should make the lookups that step asks for, and add what they return to the history. It "
-    "should check whether the model has given an answer that can be accepted yet. It should also pay "
-    "attention to its limits: a claim that runs out of lookups, or of tries at an answer, may end undecided.")
+    "step. It should check whether the model has given an answer yet. If not, it should make the lookups "
+    "that step asks for, and add what they return to the history. It should also pay attention to "
+    "whether the loop has reached its limit: a claim that runs out of lookups cannot be decided.")
 
 
 def test_the_loop_is_described_the_same_way_in_four_places():
@@ -226,15 +222,20 @@ def test_the_loop_is_described_the_same_way_in_four_places():
     assert "In Part 1 you design the loop around the model, the program that makes it an agent. " \
         + LOOP_DESCRIPTION in readme
     source = (ROOT / "my_loop.py").read_text(encoding="utf-8")
-    above = source[:source.index("    # ---- your loop goes below this line (step 1a) ----")]
-    comment = [line.strip()[2:] for line in above.splitlines()[-5:]]
+    above = source[:source.index("    # ---- your loop goes below this line (step 1a) ----")].splitlines()
+    comment = []
+    while above and above[-1].strip().startswith("# "):
+        comment.insert(0, above.pop().strip()[2:])
     assert one_line("\n".join(comment)) == LOOP_DESCRIPTION
     steps = one_line((ROOT / "steps.toml").read_text(encoding="utf-8"))
     assert '("' + LOOP_DESCRIPTION + '")' in steps
-    # "cannot be decided" was the first wording: at 12 lookups the model is warned and may still
-    # answer, so a claim that runs out of lookups can still be decided.
+    # The wording of Nov 13 said a claim "may end undecided", because the loop then warned the
+    # model at 12 lookups and let it answer, and named "tries at an answer", the check of quotes.
+    # The plainest loop stops at the limit with no verdict: the instructor's own "cannot be decided"
+    # is true again.
     for text in (page, readme, source, steps):
-        assert "cannot be decided" not in text
+        assert "may end undecided" not in text and "tries at an answer" not in text
+        assert "an answer that can be accepted" not in text
 
 
 def test_1a_gives_a_background_and_not_the_rules():
@@ -243,9 +244,25 @@ def test_1a_gives_a_background_and_not_the_rules():
     page = section_1a()
     assert "**Background:** The model cannot look anything up by itself" in page
     assert "when your design breaks a rule, the check states that rule." in page
-    for rule in LOOP_RULES:
-        assert rule[:rule.index("**", 6) + 2] not in page, rule[:40]     # no rule's bold title
-    assert "the six rules" not in page.replace("one line for each of six rules", "")
+    for title in LOOP_RULE_TITLES:
+        assert f"**{title}.**" not in page, title     # no rule's bold title
+    assert "the five rules" not in page and "the six rules" not in page
+
+
+def test_1a_asks_for_the_plainest_loop():
+    """Nov 14, the instructor: "i want to simplify the agent loop to its bare essentials. remove the
+    evidence check." One limit, no check of quotes, and nothing for the student to design for a
+    reply that asks for nothing: the parts take care of it."""
+    page = section_1a()
+    background = page[page.index("**Background:**"):page.index("**Writing your outline:**")]
+    assert "One limit is set for you: 12 lookups for a claim." in background
+    assert ("If it does neither, the parts in `loop_parts.py` remind the model to answer, so your loop "
+            "does not have to.") in background
+    assert "You will not know every detail of the rules when you start." in background
+    for gone in ("evidence check", "3 of its answers", "Two limits", "ask for nothing", "an answer that passes",
+                 "quotes something it never read", "fifteen made-up cases", "six rules"):
+        assert gone not in page, gone
+    assert "eleven made-up cases" in page and "for each of five rules" in page
 
 
 def test_1a_says_what_the_page_gives_and_what_is_the_students():
@@ -289,6 +306,16 @@ def test_nothing_still_says_the_student_reads_the_loop():
         text = (ROOT / name).read_text(encoding="utf-8")
         for old in ("Read the loop", "read its loop", "Read the agent's loop", "which is the loop"):
             assert old not in text, f"{name} still says {old!r}"
+
+
+def test_2b_says_the_loop_does_not_check_quotes_and_the_viewer_marks_them():
+    """Nov 14: the loop no longer checks quotes, so 2b's Hint no longer says it has. The results viewer
+    marks each quote instead (test_viewer.py)."""
+    page = one_line(sections((ROOT / "instructions/part2.md").read_text(encoding="utf-8"))["2b. Check the evidence yourself"])
+    assert ("**Hint:** The loop the homework asks for does not check the quotes, so under each one the results "
+            "viewer says whether it appears word for word in something the agent read. A quote can be real and "
+            "still not support the verdict.") in page
+    assert "The loop has already checked" not in page
 
 
 def test_each_page_title_names_its_part():

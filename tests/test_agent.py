@@ -1,7 +1,9 @@
 """Offline tests: a scripted stand-in for Claude and for Wikipedia, so the loop,
-the step budget and the evidence check can be tested with no API key and no
-network. The loop tested here is the reference loop (reference_loop.py); the
-check of the student's own loop is tested in test_loop_check.py."""
+its limit of lookups, the parts in loop_parts.py and the check of an answer's
+quotes can be tested with no API key and no network. The loop tested here is
+the reference loop (reference_loop.py), the plainest loop, on every reply the
+parts must keep it safe from; the check of the student's own loop is tested in
+test_loop_check.py."""
 
 import sys
 from pathlib import Path
@@ -11,6 +13,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import agent  # noqa: E402
 import baselines  # noqa: E402
 import evaluate  # noqa: E402
 import reference_loop  # noqa: E402
@@ -73,130 +76,169 @@ def test_answer_with_real_evidence_is_accepted():
     assert last_user["content"][0]["tool_use_id"] == "call3"
 
 
-def test_made_up_evidence_is_rejected():
-    claude = ScriptedClaude([
-        reply(tool_use("read", {"title": "Forrest Gump"}, 1)),
-        reply(tool_use("answer", {"verdict": "supported",
-                                  "evidence": ["Zemeckis was born in Ohio."],
-                                  "explanation": "x"}, 2)),
-        reply(tool_use("answer", {"verdict": "doesn't say", "evidence": [],
-                                  "explanation": "The page doesn't give a birthplace."}, 3)),
-    ])
-    result = reference_loop.run_agent("claim", client=claude, lookup=fake_lookup)
-    assert result["verdict"] == "doesn't say"
-    rejected = [t for t in result["trace"] if t["result"].startswith("Answer rejected")]
-    assert len(rejected) == 1
+def well_formed(sent):
+    """Every request the loop sent is one the real Claude API takes: turns alternate from the
+    user's, none is empty, and every tool call in a reply has exactly one result in the turn
+    after it (a reply that is the last turn has none yet)."""
+    for request in sent:
+        turns = request["messages"]
+        assert [t["role"] for t in turns] == ["user", "assistant"] * (len(turns) // 2) + ["user"] * (len(turns) % 2)
+        assert turns[-1]["role"] == "user"
+        for i, turn in enumerate(turns):
+            assert turn["content"] not in ([], "", None), turns
+            if turn["role"] == "assistant":
+                ids = [b.id for b in turn["content"] if b.type == "tool_use"]
+                after = turns[i + 1]["content"]
+                given = [r["tool_use_id"] for r in after if isinstance(r, dict)] if isinstance(after, list) else []
+                assert sorted(given) == sorted(ids), (ids, after)
 
 
-def test_supported_or_refuted_needs_a_quote():
-    claude = ScriptedClaude([
-        reply(tool_use("read", {"title": "Forrest Gump"}, 1)),
-        reply(tool_use("answer", {"verdict": "supported", "evidence": [],
-                                  "explanation": "x"}, 2)),
-        reply(tool_use("answer", {"verdict": "refuted", "evidence": [" "],
-                                  "explanation": "x"}, 3)),
-        reply(tool_use("answer", {"verdict": "doesn't say", "evidence": [],
-                                  "explanation": "The page doesn't give a birthplace."}, 4)),
-    ])
-    result = reference_loop.run_agent("claim", client=claude, lookup=fake_lookup)
-    assert result["verdict"] == "doesn't say"
-    rejected = [t for t in result["trace"] if t["result"].startswith("Answer rejected")]
-    assert len(rejected) == 2
-    assert all("needs at least one quote" in t["result"] for t in rejected)
+class Sent(ScriptedClaude):
+    """ScriptedClaude that keeps each request's conversation as it was when sent."""
+
+    def create(self, **kwargs):
+        kwargs = {**kwargs, "messages": list(kwargs["messages"])}
+        self.sent.append(kwargs)
+        if not self.responses:
+            raise AssertionError("the loop asked the model again after the last scripted reply")
+        return self.responses.pop(0)
 
 
-def test_evidence_as_one_string_is_checked_as_one_quote():
-    # The schema asks for a list, but Claude sometimes sends a plain string.
-    claude = ScriptedClaude([
-        reply(tool_use("read", {"title": "Forrest Gump"}, 1)),
-        reply(tool_use("answer", {"verdict": "supported",
-                                  "evidence": "Zemeckis was born in Ohio.",
-                                  "explanation": "x"}, 2)),
-        reply(tool_use("answer", {"verdict": "supported",
-                                  "evidence": "directed by Robert Zemeckis",
-                                  "explanation": "x"}, 3)),
-    ])
-    result = reference_loop.run_agent("claim", client=claude, lookup=fake_lookup)
-    rejected = [t for t in result["trace"] if t["result"].startswith("Answer rejected")]
-    assert len(rejected) == 1
-    assert "Zemeckis was born in Ohio." in rejected[0]["result"]
-    assert result["verdict"] == "supported"
+def bare(responses, **kwargs):
+    claude = Sent(responses)
+    result = reference_loop.run_agent("claim", client=claude, lookup=fake_lookup, **kwargs)
+    well_formed(claude.sent)
+    return result, claude
+
+
+MADE_UP = {"verdict": "supported", "evidence": ["Zemeckis was born in Ohio."], "explanation": "x"}
+NOTHING = NS(type="text", text="I think it's true.")
+
+
+def test_the_reference_loop_accepts_an_answer_whatever_its_quotes():
+    """The loop does not check quotes (Nov 14): an answer quoting what the agent never read ends
+    the check with that answer. The results viewer marks such a quote."""
+    result, claude = bare([reply(tool_use("read", {"title": "Forrest Gump"}, 1)),
+                           reply(tool_use("answer", MADE_UP, 2))])
+    assert result["verdict"] == "supported" and result["evidence"] == ["Zemeckis was born in Ohio."]
+    assert [t["result"] for t in result["trace"]] == [PAGES["Forrest Gump"], "accepted"]
+    assert len(claude.sent) == 2
+
+
+def test_the_check_of_quotes_is_still_there_for_a_loop_that_uses_it():
+    read = [PAGES["Forrest Gump"]]
+    assert agent.answer_problem(agent.clean_answer(MADE_UP), read).startswith(
+        "These quotes are not in anything you read in this check: Zemeckis was born in Ohio.")
+    for evidence in ([], [" "]):
+        answer = agent.clean_answer({"verdict": "refuted", "evidence": evidence, "explanation": "x"})
+        assert "needs at least one quote" in agent.answer_problem(answer, read)
+    # Evidence sent as one string is checked as one quote, not letter by letter.
+    answer = agent.clean_answer({"verdict": "supported", "evidence": "Zemeckis was born in Ohio."})
+    assert agent.answer_problem(answer, read).endswith(": Zemeckis was born in Ohio.")
+    assert agent.answer_problem(agent.clean_answer(
+        {"verdict": "supported", "evidence": "directed by Robert Zemeckis"}), read) is None
+    for verdict in (None, "true"):
+        answer = agent.clean_answer({"verdict": verdict, "evidence": [], "explanation": "x"})
+        assert agent.answer_problem(answer, read).startswith("The verdict must be")
+
+
+def test_evidence_as_one_string_is_saved_as_one_quote():
+    result, _ = bare([reply(tool_use("read", {"title": "Forrest Gump"}, 1)),
+                      reply(tool_use("answer", {"verdict": "supported", "evidence": "directed by Robert Zemeckis",
+                                                "explanation": "x"}, 2))])
     assert result["evidence"] == ["directed by Robert Zemeckis"]
 
 
-def test_missing_evidence_is_an_empty_list():
-    claude = ScriptedClaude([
-        reply(tool_use("answer", {"verdict": "doesn't say", "explanation": "x"}, 1)),
-    ])
-    result = reference_loop.run_agent("claim", client=claude, lookup=fake_lookup)
-    assert result["verdict"] == "doesn't say"
-    assert result["evidence"] == []
+def test_a_missing_or_unknown_verdict_is_no_verdict():
+    for answer in ({"evidence": [], "explanation": "x"},
+                   {"verdict": "true", "evidence": [], "explanation": "x"}):
+        result, claude = bare([reply(tool_use("answer", answer, 1))])
+        assert result["verdict"] is None and result["explanation"] == "x"
+        assert len(claude.sent) == 1
 
 
-def test_missing_explanation_is_empty():
-    claude = ScriptedClaude([
-        reply(tool_use("answer", {"verdict": "doesn't say", "evidence": []}, 1)),
-    ])
-    result = reference_loop.run_agent("claim", client=claude, lookup=fake_lookup)
-    assert result["verdict"] == "doesn't say"
-    assert result["explanation"] == ""
-
-
-def test_missing_or_unknown_verdict_is_rejected():
-    claude = ScriptedClaude([
-        reply(tool_use("answer", {"evidence": [], "explanation": "x"}, 1)),
-        reply(tool_use("answer", {"verdict": "true", "evidence": [], "explanation": "x"}, 2)),
-        reply(tool_use("answer", {"verdict": "doesn't say", "evidence": [],
-                                  "explanation": "x"}, 3)),
-    ])
-    result = reference_loop.run_agent("claim", client=claude, lookup=fake_lookup)
-    assert result["verdict"] == "doesn't say"
-    rejected = [t for t in result["trace"] if t["result"].startswith("Answer rejected")]
-    assert len(rejected) == 2
-    assert all("The verdict must be" in t["result"] for t in rejected)
-
-
-def test_rejected_answers_stop_the_agent():
-    made_up = {"verdict": "supported", "evidence": ["Zemeckis was born in Ohio."],
-               "explanation": "x"}
-    claude = ScriptedClaude([reply(tool_use("answer", made_up, i)) for i in range(10)])
-    result = reference_loop.run_agent("claim", client=claude, lookup=fake_lookup)
-    assert result["verdict"] is None
-    assert "rejected 3 times" in result["explanation"]
-    assert len(claude.sent) == 3
-
-
-def test_step_budget_stops_the_agent():
-    claude = ScriptedClaude([reply(tool_use("search", {"query": f"q{i}"}, i)) for i in range(10)])
-    result = reference_loop.run_agent("claim", client=claude, max_steps=3, lookup=fake_lookup)
+def test_the_limit_stops_the_agent_with_no_verdict():
+    result, claude = bare([reply(tool_use("search", {"query": f"q{i}"}, i)) for i in range(10)], max_steps=3)
     assert result["verdict"] is None
     assert result["steps"] == 3
-    assert "ran out of steps" in result["explanation"]
-    assert any(t["result"].startswith("You have used all 3 steps") for t in result["trace"])
+    assert result["explanation"] == agent.RAN_OUT
+    assert len(claude.sent) == 4            # the fourth reply asked for more, with 3 made
+    assert not any("You have used all" in t["result"] for t in result["trace"])     # no warning
 
 
-def test_agent_can_answer_after_the_warning():
-    claude = ScriptedClaude(
-        [reply(tool_use("search", {"query": f"q{i}"}, i)) for i in range(3)]
-        + [reply(tool_use("answer", {"verdict": "doesn't say", "evidence": [],
-                                     "explanation": "ran short"}, 9))])
-    result = reference_loop.run_agent("claim", client=claude, max_steps=2, lookup=fake_lookup)
+def test_an_answer_at_the_limit_ends_the_check_with_that_answer():
+    claude = [reply(tool_use("search", {"query": f"q{i}"}, i)) for i in range(2)]
+    claude.append(reply(tool_use("answer", {"verdict": "doesn't say", "evidence": [],
+                                            "explanation": "ran short"}, 9)))
+    result, _ = bare(claude, max_steps=2)
     assert result["verdict"] == "doesn't say"
     assert result["steps"] == 2
 
 
-def test_stopping_without_answer_gets_one_reminder():
-    text = NS(type="text", text="I think it's true.")
-    claude = ScriptedClaude([reply(text, stop="end_turn"), reply(text, stop="end_turn")])
-    result = reference_loop.run_agent("claim", client=claude, lookup=fake_lookup)
-    assert result["verdict"] is None
+def test_one_reply_can_take_the_count_past_the_limit():
+    """The limit is looked at once a reply, before its lookups: every lookup of a reply that came
+    below the limit is made."""
+    result, claude = bare([
+        reply(tool_use("search", {"query": "q0"}, 0)),
+        reply(tool_use("read", {"title": "Forrest Gump"}, 1), tool_use("read", {"title": "Robert Zemeckis"}, 2),
+              tool_use("search", {"query": "q3"}, 3)),
+        reply(tool_use("search", {"query": "q4"}, 4))], max_steps=2)
+    assert result["verdict"] is None and result["explanation"] == agent.RAN_OUT
+    assert result["steps"] == 4 and len(claude.sent) == 3
+
+
+def test_an_answer_with_lookups_in_the_same_reply_ends_the_check():
+    result, claude = bare([
+        reply(tool_use("read", {"title": "Forrest Gump"}, 1)),
+        reply(tool_use("search", {"query": "Zemeckis"}, 2),
+              tool_use("answer", {"verdict": "supported", "evidence": ["directed by Robert Zemeckis"],
+                                  "explanation": "x"}, 3)),
+    ])
+    assert result["verdict"] == "supported" and result["steps"] == 1
     assert len(claude.sent) == 2
 
 
+def test_a_reply_that_asks_for_nothing_gets_one_reminder():
+    result, claude = bare([reply(NOTHING, stop="end_turn"),
+                           reply(tool_use("answer", {"verdict": "doesn't say", "evidence": [],
+                                                     "explanation": "x"}, 1))])
+    assert result["verdict"] == "doesn't say"
+    assert claude.sent[1]["messages"][-1] == {"role": "user", "content": agent.REMINDER}
+    assert [t["tool"] for t in result["trace"]] == ["(reminder)", "answer"]
+
+
+def test_asking_for_nothing_twice_running_ends_with_no_verdict():
+    result, claude = bare([reply(NOTHING, stop="end_turn"), reply(NOTHING, stop="end_turn")])
+    assert result["verdict"] is None and result["explanation"] == agent.NO_ANSWER
+    assert len(claude.sent) == 2
+    assert [t["tool"] for t in result["trace"]] == ["(reminder)"]
+    # A later stall is reminded again: the reminder is once in a row, not once a check.
+    result, claude = bare([reply(NOTHING, stop="end_turn"), reply(tool_use("search", {"query": "q"}, 1)),
+                           reply(NOTHING, stop="end_turn"), reply(NOTHING, stop="end_turn")])
+    assert result["explanation"] == agent.NO_ANSWER and len(claude.sent) == 4
+    assert [t["tool"] for t in result["trace"]] == ["(reminder)", "search", "(reminder)"]
+
+
 def test_refusal_ends_the_check():
-    claude = ScriptedClaude([reply(stop="refusal")])
-    result = reference_loop.run_agent("claim", client=claude, lookup=fake_lookup)
-    assert result["verdict"] is None
+    result, claude = bare([reply(stop="refusal")])
+    assert result["verdict"] is None and result["explanation"] == agent.DECLINED
+    assert result["trace"] == [{"tool": "(refusal)", "input": {}, "result": agent.DECLINED}]
+    assert len(claude.sent) == 1
+    # And after a reminder.
+    result, claude = bare([reply(NOTHING, stop="end_turn"), reply(NOTHING, stop="refusal")])
+    assert result["explanation"] == agent.DECLINED and len(claude.sent) == 2
+    assert [t["tool"] for t in result["trace"]] == ["(reminder)", "(refusal)"]
+
+
+def test_a_reply_after_a_reminder_counts_the_tokens_of_both_asks():
+    import loop_parts
+    claude = Sent([reply(NOTHING, stop="end_turn"),
+                   reply(tool_use("answer", {"verdict": "doesn't say", "evidence": [], "explanation": "x"}, 1))])
+    talk = loop_parts.Conversation("claim", claude, "", [{"role": "user", "content": "Claim: c"}], [], [],
+                                   fake_lookup)
+    step = talk.ask()
+    assert (step.usage.input_tokens, step.usage.output_tokens) == (200, 20)
+    assert step.answer is not None and step.lookups == []
 
 
 def test_scoring_hover_and_fever():

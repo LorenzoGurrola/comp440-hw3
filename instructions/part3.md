@@ -68,7 +68,7 @@ three quarters of a word. Each reply from the model says how many tokens it used
    reply's tokens; and every time the loop stops, it returns the count along with the answer, or with
    no verdict. Then ask Claude to translate your outline again. If you wrote the Python yourself, see
    Troubleshooting.
-2. Ask Claude to run the check. The line "Count the tokens (extra credit)", printed after the six rules,
+2. Ask Claude to run the check. The line "Count the tokens (extra credit)", printed after the five rules,
    must say `ok`, like them.
 3. Decide on **one** change aimed at your most common failure from 3a (see the Hint).
 4. Make the change in your editor, or tell Claude exactly what to change.
