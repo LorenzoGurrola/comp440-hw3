@@ -1073,7 +1073,8 @@ Never suggest a number or a reason. Never say what the run has shown so far, and
 anything in runs/part2. If they ask how the run is going, point them to its terminal tab. If they
 ask for their own earlier results, such as the 1c report, you may show them.
 
-This is a good place to stop for the day. The run does not need this session open.
+Once the run has ended, this is a good place to stop for the day. Until then the laptop must stay
+awake and the run's terminal tab open; the run does not need this session.
 '''
 
 # ---- Part 2: The agent against the baselines ----------------------------------------------

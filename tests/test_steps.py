@@ -492,6 +492,18 @@ def test_0d_explains_wikidata_but_the_why_is_the_students(a):
     assert "two questions" not in brief
 
 
+def test_1e_says_stop_for_the_day_only_once_the_run_has_ended(a):
+    """The flow simulations of Nov 14, runs A and B: both tutors told the student to stop for the day
+    while the full run was still going. A student who closes the laptop then stops the run. The page's
+    Hint says it only "once the run has ended"; the brief now says the same."""
+    brief = flat(a.step("1e").brief)
+    assert ("Once the run has ended, this is a good place to stop for the day. Until then the laptop must "
+            "stay awake and the run's terminal tab open; the run does not need this session.") in brief
+    assert "This is a good place to stop for the day." not in brief
+    hint = flat((REPO / "instructions" / "part1.md").read_text(encoding="utf-8"))
+    assert "once the run has ended, this is a good place to stop for the day." in hint
+
+
 def test_run_notes_are_the_outlines():
     steps = {s["id"]: s for s in raw()["step"]}
     assert {i: s["run_yourself"]["note"] for i, s in steps.items() if "run_yourself" in s} == RUN_NOTES
