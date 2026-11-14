@@ -37,8 +37,7 @@ These are the homework's learning goals, as the student reads them. In this home
 1. Understand what makes a program an *agent*. You will study a language model that picks the
    next Wikipedia search query, reads the page that comes back, and decides when to stop.
 2. Gain hands-on experience with the loop around the model by writing it yourself: its tools, its
-   instructions, its limit of 12 lookups, and the check that every sentence it quotes really appears
-   in what it read.
+   instructions, and its limit of 12 lookups.
 3. Compare the agent with two simpler methods on your claims, and measure how effective each one is.
 4. Check the agent's evidence yourself, and decide whether accuracy alone is a fair measure of it.
 
