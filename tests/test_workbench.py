@@ -426,6 +426,31 @@ def test_every_step_of_the_real_homework_has_a_command_and_a_prompt(tmp_path):
     assert json.loads(json.dumps(app.assignment()))["steps"]
 
 
+def test_each_steps_prompt_gives_the_time_the_page_shows(tmp_path):
+    """The flow simulations of Nov 14: asked "how long is this one", a tutor said the instructions
+    give no estimate, though the page says "about 35 minutes" beside the title. The step's file
+    takes its time from the same `minutes`, so the two cannot drift; a step with none says nothing."""
+    for name in ("steps.toml", "WRITEUP.md", "README.md"):
+        (tmp_path / name).write_text((ROOT / name).read_text())
+    (tmp_path / "instructions").mkdir()
+    for f in (ROOT / "instructions").glob("*.md"):
+        (tmp_path / "instructions" / f.name).write_text(f.read_text())
+    git(tmp_path, "init", "-q", "-b", "main")
+    app = server.App(tmp_path)
+    for s in app.a.steps:
+        app.hub.sessions[s.id].prepare()
+        prompt = (app.hub.dir / f"{app.a.label(s)}.md").read_text()
+        assert s.minutes, s.id
+        assert (f"This step takes about {s.minutes} minutes, as the page says. "
+                "Say so if the student asks.") in prompt, s.id
+        assert prompt.count("This step takes about") == 1, s.id
+    (tmp_path / "small").mkdir()
+    h = homework(tmp_path / "small")                         # the small homework gives no minutes
+    small = server.App(h.student)
+    small.hub.sessions["0b"].prepare()
+    assert "This step takes about" not in (small.hub.dir / "0b.md").read_text()
+
+
 def test_a_checkpoint_with_a_file_or_answers_is_ticked_only_by_them(tmp_path):
     h = homework(tmp_path)
     app = server.App(h.student)

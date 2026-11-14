@@ -992,6 +992,9 @@ class Hub:
             counts.append(f"{i}. {c.text} ({how})")
         counts_text = "\n".join(counts) or "(none listed)"
         manual = not (s.slots or s.files)
+        # The step's time, from the same `minutes` the page shows beside its title, so the two agree.
+        took = (f"This step takes about {s.minutes} minute{'' if s.minutes == 1 else 's'}, as the page says. "
+                "Say so if the student asks.\n") if s.minutes else ""
         return f"""
 {a.tutor.strip()}
 
@@ -999,7 +1002,7 @@ class Hub:
 
 You help with one step, and only this one: {label}, "{s.title}", in Part {s.part} ({part.get('title', '')}).
 What this step is, as the page says it under the step's title: {s.summary.strip()}
-The student talks to you in a terminal. Beside it, a web page shows every step of the assignment,
+{took}The student talks to you in a terminal. Beside it, a web page shows every step of the assignment,
 each with its own Claude Code session, and this step's instructions, which say:
 
 <step-instructions>
