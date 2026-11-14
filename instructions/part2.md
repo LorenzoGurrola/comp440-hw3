@@ -33,7 +33,7 @@ are both fine in your answers.
 
 - Ask Claude to paste the report of your full run, from `runs/part2/report.txt`, into the empty block below.
 - How do the results compare with your predictions? Where were you furthest off? Use the numbers from your run, by number of articles.
-- Does the gap between the agent and the one-search baseline grow with the number of articles? If it does not, what might explain that?
+- Does the gap between the agent and the one-search baseline grow with the number of articles? What in the claims or the traces explains what you see?
 - The no-tools baseline read nothing. How did it do, and what does that tell you about these claims?
 
 **Troubleshooting:**
@@ -71,7 +71,7 @@ uv run python lookup.py --no-log read "<page title>" "<section>"
 
 **Write-up:** In `WRITEUP.md`, under 2b, fill in the table and answer:
 
-- Fill in one row for each of the first five claims in your Part 2 run, in the order of the claims file, where the agent's verdict is *supported* or *refuted*.
+- Fill in one row for each of the first five claims in your full run, in the order of the claims file, where the agent's verdict is *supported* or *refuted*.
 - Of the five, how many matched the dataset's label, and for how many of those does the quoted evidence support the verdict?
 - Is accuracy alone a good measure of this agent? Why or why not?
 

@@ -44,23 +44,24 @@ EXPECTED = {
     "0c": (0, "0c. Give it one search", ["runs/part0/one-search-*.json"], CHECK, 15),
     "0d": (0, "0d. Run the agent and read its trace", ["runs/part0/agent-*.json"], CHECK, 15),
     "1a": (1, "1a. Design the loop", ["runs/part1/loop-check.txt"], LOOP_CHECK + ["Edit(my_loop.py)"], 70),
-    "1b": (1, "1b. Be the agent", ["runs/part1/lookups.jsonl"], LOOKUP, 25),
+    "1b": (1, "1b. Be the agent", ["runs/part1/lookups.jsonl"], LOOKUP, 35),
     "1c": (1, "1c. Watch the agent work", ["runs/part1/before/report.txt"], EVALUATE + CHECK, 25),
     "1d": (1, "1d. Write the agent's instructions", ["runs/part1/after/report.txt"], EVALUATE + CHECK, 45),
     "1e": (1, "1e. Start the full run, and predict", ["runs/part2/no-tools.jsonl"], EVALUATE, 20),
     "2a": (2, "2a. Compare accuracy", ["runs/part2/report.txt"], EVALUATE, 25),
     "2b": (2, "2b. Check the evidence yourself", [], LOOKUP, 35),
-    "3a": (3, "3a. Sort the failures", [], [], 32),
+    "3a": (3, "3a. Sort the failures", [], [], 45),
     "3b": (3, "3b. Make one change", ["runs/part3/after/report.txt"],
-           EVALUATE + CHECK + ["Bash(uv run python check_loop.py)", "Edit(instructions.md)", "Edit(my_loop.py)"], 28),
-    "3c": (3, "3c. Write it up", [], [], 20),
+           EVALUATE + CHECK + ["Bash(uv run python check_loop.py)", "Edit(instructions.md)", "Edit(my_loop.py)"], 45),
+    "3c": (3, "3c. Write it up", [], [], 30),
 }
 # Minutes per part (the instructor's "split the difference", morning of Nov 11). Parts 0 to 2,
 # the required work, made about 5 hours and 45 minutes; the old step 0b, picking topics and
 # claims, took 40 of them. Without it (the instructor, afternoon of Nov 11: "drop 0b") they make
 # 305 minutes, about 5 hours.
 # Step 3b went from 18 to 28 minutes for its first task, token counting (Nov 11).
-PART_MINUTES = {0: 60, 1: 185, 2: 60, 3: 80}
+# After the read of steps 1b to 3c (Nov 13): 1b 25 -> 35, 3a 32 -> 45, 3b 28 -> 45, 3c 20 -> 30.
+PART_MINUTES = {0: 60, 1: 195, 2: 60, 3: 120}
 
 # Each step's summary, word for word from the instructor's outline (Nov 11).
 SUMMARIES = {
@@ -78,15 +79,16 @@ SUMMARIES = {
           "chooses, sends back what they return, and stops.",
     "1b": "In this step you check one claim yourself, using only the agent's four tools.",
     "1c": "In this step you find out whether the agent matches the dataset's label on your 12 "
-          "development claims.",
+          "development claims, and whether it got there for a good reason.",
     "1d": "In this step you write the agent's instructions, and see how its traces change.",
-    "1e": "In this step you start the run on your 100 evaluation claims.",
+    "1e": "In this step you start the run on your 100 evaluation claims, and predict its results while it runs.",
     "2a": "In this step you find out how often each of the three versions matched the dataset's label "
           "on your 100 evaluation claims. You compare those numbers with your predictions from 1e.",
     "2b": "In this step you find out whether the agent's quoted evidence really supports its verdicts.",
     "3a": "In this step you find out why the agent fails on your evaluation claims.",
     "3b": "In this step you make one change aimed at your most common failure. You find out whether it "
-          "fixes that failure on your evaluation claims.",
+          "fixes that failure on your evaluation claims. First, you make your loop count tokens, so that you "
+          "see what the run costs.",
     "3c": "In this step you say what you learned, in your own words.",
 }
 
@@ -109,9 +111,8 @@ TASKS = {
            "Ask Claude to translate your outline into my_loop.py and to run the check. Change your outline and "
            "ask again, until every rule passes. The structure and the ideas are yours; Claude coaches you and "
            "writes the Python. (Remember, Claude can help you!)"],
-    "1b": ["By hand, make your first lookup: ask Claude to run it, with the tool and the words you choose. "
-           "It is saved in "
-           "runs/part1/lookups.jsonl.",
+    "1b": ["Make your first lookup: choose the tool and what to ask it (for a search, the search query), "
+           "and ask Claude to run it. It is saved in runs/part1/lookups.jsonl.",
            "Decide on a verdict on the claim. If you've used all 12 lookups without answering it, your "
            "verdict is *doesn't say*."],
     "1c": ["Ask Claude to run the agent on your 12 development claims.",
@@ -127,7 +128,8 @@ TASKS = {
            "In the results viewer, open the run."],
     "2b": ["In the results viewer, check the quoted evidence for the first five claims where the agent "
            "answered \"supported\" or \"refuted\"."],
-    "3a": ["In your editor, label each of the eight failures in your table, with the entry of the trace "
+    "3a": ["In the results viewer, read the trace of each of the first eight failures (Actions says how to "
+           "find them), and in your editor label each one in the table under 3a, with the entry of the trace "
            "that shows it, and say whether the dataset's label is right.",
            "Ask Claude to label the same claims. It gives its labels without seeing yours.",
            "Put Claude's labels in the last column of your table: ask Claude to, or type them in your editor."],
@@ -277,7 +279,7 @@ def test_fourteen_steps_in_order(a):
 def test_minutes_per_part(a):
     per = {n: sum(s.minutes for s in a.steps if s.part == n) for n in PARTS}
     assert per == PART_MINUTES
-    assert sum(per[n] for n in (0, 1, 2)) == 305, "the required work is about 5 hours"
+    assert sum(per[n] for n in (0, 1, 2)) == 315, "the required work is a little over 5 hours"
 
 
 # The instructor, Nov 11, on counting tokens: "have it gone entirely. for the extra credit we can
@@ -332,7 +334,7 @@ def test_3b_starts_with_token_counting(a):
                  "and pass `tokens` last in every `talk.accept(...)` and `talk.stop(...)`",
                  "Apart from the token count, leave your outline and your loop as they passed the check",
                  'The line "Count the tokens (extra credit)", printed after the six rules, must say `ok`',
-                 "It should take about an hour and 20 minutes.",
+                 "It should take about 2 hours.",
                  'The agent\'s cost per claim is under "Cost" for `runs/part3/after` in the results viewer, and '
                  'the one-search baseline\'s is under "Cost" for `runs/part2`.'):
         assert must in page, must

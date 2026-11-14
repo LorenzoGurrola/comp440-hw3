@@ -81,13 +81,13 @@ List your lookups, in order. Ask Claude to paste every column but the last from 
 |---|---|---|---|
 | 1 | | | |
 
-What is your verdict on the claim, and which sentence or sentences are most important?
+What is your verdict on the claim, and which sentence or sentences from what you read is it based on?
 
 >
 
 ## 1c. Watch the agent work
 
-List the three traces you read closely. At least one should be a claim the agent got wrong (if it had errors).
+List the three traces you read closely. At least one should be a claim the agent got wrong (if it got any wrong).
 
 | # | Claim (first few words) | Articles | Did it match the dataset's label? | Did it get there for a good reason? Why or why not |
 |---|---|---|---|---|
@@ -115,7 +115,7 @@ Predict the share of claims each version will get right (its verdict matches the
 | One search | | | | |
 | Agent | | | | |
 
-How many lookups will the agent make per claim, on average? Will that grow with the number of articles? Why?
+How many lookups will the agent make per claim, on average? Why?
 
 >
 
@@ -132,7 +132,7 @@ How do the results compare with your predictions? Where were you furthest off? U
 
 >
 
-Does the gap between the agent and the one-search baseline grow with the number of articles? If it does not, what might explain that?
+Does the gap between the agent and the one-search baseline grow with the number of articles? What in the claims or the traces explains what you see?
 
 >
 
@@ -142,7 +142,7 @@ The no-tools baseline read nothing. How did it do, and what does that tell you a
 
 ## 2b. Check the evidence yourself
 
-Fill in one row for each of the first five claims in your Part 2 run, in the order of the claims file, where the agent's verdict is *supported* or *refuted*.
+Fill in one row for each of the first five claims in your full run, in the order of the claims file, where the agent's verdict is *supported* or *refuted*.
 
 | # | Claim (first few words) | Agent's verdict | Matched the dataset's label? | Does the quoted evidence support that verdict? | Why or why not |
 |---|---|---|---|---|---|
@@ -164,7 +164,7 @@ Is accuracy alone a good measure of this agent? Why or why not?
 
 ## 3a. Sort the failures
 
-Fill in one row for each of the first eight failures in your full run from 1e, rows 1 to 8 of the claims table for runs/part2 with "Result" in "The agent" box set to "does not match the dataset's label (any reason)". If you have fewer than eight, fill a row for each and delete the rest. Type your labels before you ask Claude for its own. Then ask Claude to add its labels to the last column, or type them in yourself.
+Fill in one row for each of the first eight failures in your full run, rows 1 to 8 of the claims table for runs/part2 with "Result" in "The agent" box set to "does not match the dataset's label (any reason)". If you have fewer than eight, fill a row for each and delete the rest.
 
 | Row | Claim (first few words) | Your label | The entry of the trace that shows it | Is the dataset's label right? (yes, no or can't tell) | Claude's label |
 |---|---|---|---|---|---|
@@ -191,7 +191,7 @@ What did you change, and why did you expect it to help?
 
 >
 
-How many of your evaluation claims did the agent match before the change and after it? Which of your eight failures from 3a now match?
+How many of your evaluation claims did the agent match before the change and after it? Which of your failures from 3a now match?
 
 >
 

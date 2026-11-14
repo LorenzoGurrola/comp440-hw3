@@ -1,7 +1,7 @@
 # COMP 440 HW3 Part 3 (extra credit): Why the agent fails, and one change
 
 In this part you sort out why the agent fails on your evaluation claims, make one change aimed at the
-most common failure, and write up what you found. It should take about an hour and 20 minutes.
+most common failure, and write up what you found. It should take about 2 hours.
 
 Part 3 is extra credit: the homework is complete when Parts 0 to 2 are done. If you do Part 3, finish it
 before you submit.
@@ -42,7 +42,7 @@ give a trace, or say which of you is right.
 
 **Write-up:** In `WRITEUP.md`, under 3a, fill in the table and answer:
 
-- Fill in one row for each of the first eight failures in your full run from 1e, rows 1 to 8 of the claims table for runs/part2 with "Result" in "The agent" box set to "does not match the dataset's label (any reason)". If you have fewer than eight, fill a row for each and delete the rest. Type your labels before you ask Claude for its own. Then ask Claude to add its labels to the last column, or type them in yourself.
+- Fill in one row for each of the first eight failures in your full run, rows 1 to 8 of the claims table for runs/part2 with "Result" in "The agent" box set to "does not match the dataset's label (any reason)". If you have fewer than eight, fill a row for each and delete the rest.
 - Where did you and Claude disagree, and who do you think is right?
 - Which kind of failure was most common? If no kind repeats, say which failure you will aim at in 3b, and why.
 
@@ -54,7 +54,8 @@ tell" is a fine answer.
 ## 3b. Make one change
 
 In this step you make one change aimed at your most common failure. You find out whether it fixes that
-failure on your evaluation claims.
+failure on your evaluation claims. First, you make your loop count tokens, so that you see what the run
+costs.
 
 **Words in this step:** A *token* is the unit the Claude API counts text in and charges by, about
 three quarters of a word. Each reply from the model says how many tokens it used.
@@ -89,7 +90,7 @@ give the same answer every time, so a difference of a few claims between the two
 **Write-up:** Answer these questions in `WRITEUP.md`, under 3b:
 
 - What did you change, and why did you expect it to help?
-- How many of your evaluation claims did the agent match before the change and after it? Which of your eight failures from 3a now match?
+- How many of your evaluation claims did the agent match before the change and after it? Which of your failures from 3a now match?
 - Quote one claim the agent matched before the change and not after it, if there is one, and say what you think happened. If there is none, say so.
 
 **Troubleshooting:**
@@ -142,6 +143,6 @@ Part 3 is extra credit. At a minimum I am looking for the following:
 - Failure labels: 35% - Each label in 3a is backed by the entry of the trace that shows it, you say
   whether the dataset's label is right, and you explain where you and Claude disagreed.
 - Your change: 30% - Your 3b change targets your most common failure, and you report its effect on
-  your evaluation claims and on your eight failures.
+  your evaluation claims and on your failures from 3a.
 - Write-up: 35% - Your 3c answers use your own numbers and examples, the Wikipedia answer goes beyond
   "it was missing" to why, and you say which of your conclusions might be chance.

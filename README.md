@@ -125,10 +125,10 @@ If you are curious, here are additional details.
 | [Part 2: The agent against the baselines](instructions/part2.md) | Compare accuracy by how many articles a claim needs, and check the agent's evidence yourself | 50% |
 | [Part 3 (extra credit): Why the agent fails, and one change](instructions/part3.md) | Sort the agent's failures on your claims, make one change, and write up what you found | Extra credit |
 
-I expect this homework to take about 5 hours in all, in three sittings: about an hour for Part 0, about
-3 hours for Part 1, and about an hour for Part 2. On top of that, the full run in
-Part 1 takes about 10 minutes while you do other things. Part 3, which is extra credit, takes about an
-hour and 20 minutes more, and its run about 6 minutes.
+I expect this homework to take a little over 5 hours in all, in three sittings: about an hour for Part 0,
+a little over 3 hours for Part 1, and about an hour for Part 2. On top of that, the full run in
+Part 1 takes about 10 minutes while you do other things. Part 3, which is extra credit, takes about 2
+hours more, and its run about 6 minutes.
 
 ## Words this homework uses
 

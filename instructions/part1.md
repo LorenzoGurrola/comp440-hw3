@@ -2,7 +2,7 @@
 
 In this part you build and study the agent. You design its loop, check one claim yourself, watch it work
 on your 12 development claims, write its instructions, and then start the full run on your 100
-evaluation claims. It should take about 3 hours.
+evaluation claims. It should take a little over 3 hours.
 
 Back to the [assignment page](../README.md).
 
@@ -121,7 +121,7 @@ The claim you check in this step:
 
 **Actions:**
 
-1. Decide on one lookup: which tool, and what to ask it. `search` takes words; `read` takes a page
+1. Decide on one lookup: which tool, and what to ask it. `search` takes a search query; `read` takes a page
    title, and a section if you want one; `wikidata` takes an entity and a property (see Interpreting
    output). Use only the agent's tools, not your browser, so that you see only what the agent sees.
 2. Ask Claude to run it. Read what comes back, and write down for yourself why you chose that lookup:
@@ -151,7 +151,7 @@ there is no `answer` call.
 **Write-up:** In `WRITEUP.md`, under 1b, fill in the table and answer:
 
 - List your lookups, in order. Ask Claude to paste every column but the last from `runs/part1/lookups.jsonl`. Type "Why you chose it" yourself.
-- What is your verdict on the claim, and which sentence or sentences are most important?
+- What is your verdict on the claim, and which sentence or sentences from what you read is it based on?
 
 **Troubleshooting:**
 
@@ -167,7 +167,8 @@ output.
 
 ## 1c. Watch the agent work
 
-In this step you find out whether the agent matches the dataset's label on your 12 development claims.
+In this step you find out whether the agent matches the dataset's label on your 12 development claims,
+and whether it got there for a good reason.
 
 **Words in this step:** *Your development claims* are the 12 claims in `data/dev.jsonl`. *The number of
 articles* is how many Wikipedia articles a claim needs (2, 3 or 4). *The dataset's label* is HoVer's
@@ -199,7 +200,7 @@ evidence" says "Found in entry N of the trace (read), highlighted below": click 
 
 **Write-up:** In `WRITEUP.md`, under 1c, fill in the table and answer:
 
-- List the three traces you read closely. At least one should be a claim the agent got wrong (if it had errors).
+- List the three traces you read closely. At least one should be a claim the agent got wrong (if it got any wrong).
 - Which trace did you find most interesting, and what did the agent do well or badly in it?
 
 **Troubleshooting:** If the run stops partway, ask Claude to run the same command again. It keeps every
@@ -269,7 +270,7 @@ or suggest text for `instructions.md`, because what the agent is told is your de
 
 ## 1e. Start the full run, and predict
 
-In this step you start the run on your 100 evaluation claims.
+In this step you start the run on your 100 evaluation claims, and predict its results while it runs.
 
 **Words in this step:** *The three versions* are the no-tools baseline (the model answers from memory),
 the one-search baseline (one search, one page, then an answer) and the agent. *Your evaluation claims*
@@ -293,7 +294,7 @@ and is saved in `runs/part2`. You read the tables in 2a.
 **Write-up:** In `WRITEUP.md`, under 1e, fill in the table and answer:
 
 - Predict the share of claims each version will get right (its verdict matches the dataset's label), as a percentage. A guess is fine; the reasons are what I grade.
-- How many lookups will the agent make per claim, on average? Will that grow with the number of articles? Why?
+- How many lookups will the agent make per claim, on average? Why?
 
 **Troubleshooting:**
 
@@ -312,7 +313,7 @@ Part 1 is 35% of the homework. At a minimum I am looking for the following:
 - Your loop: 30% - Your outline is your own design, your loop passes the check, and your answers to 1a
   say what your loop remembers and how it differs from the reference loop.
 - Being the agent: 20% - Your 1b record shows each lookup and why you chose it, and your verdict names
-  the sentences that are most important.
+  the sentences it is based on.
 - Predictions: 15% - Each prediction in 1e has a reason. They are graded on the reasoning, not on being
   right.
 - Instructions: 35% - Your `instructions.md` covers the four points in 1d, your 1c table says for each

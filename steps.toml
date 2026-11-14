@@ -807,13 +807,13 @@ part = 1
 title = "Be the agent"
 page = "instructions/part1.md"
 section = "1b. Be the agent"
-minutes = 25
+minutes = 35
 slots = ["1b.*"]
 files = ["runs/part1/lookups.jsonl"]
 allow = ["Bash(uv run python lookup.py:*)"]
 summary = "In this step you check one claim yourself, using only the agent's four tools."
 checkpoints = [
-  { text = "Your first lookup is saved in runs/part1/lookups.jsonl", task = "By hand, make your first lookup: ask Claude to run it, with the tool and the words you choose. It is saved in runs/part1/lookups.jsonl.", files = ["runs/part1/lookups.jsonl"] },
+  { text = "Your first lookup is saved in runs/part1/lookups.jsonl", task = "Make your first lookup: choose the tool and what to ask it (for a search, the search query), and ask Claude to run it. It is saved in runs/part1/lookups.jsonl.", files = ["runs/part1/lookups.jsonl"] },
   { text = "You have a verdict on the claim", task = "Decide on a verdict on the claim. If you've used all 12 lookups without answering it, your verdict is *doesn't say*.", tick = false },
   { text = "Your table and answer are in WRITEUP.md", slots = ["1b.*"] },
 ]
@@ -847,7 +847,7 @@ about claims matter most here:
   Never say how many lookups the claim should take, whether they have found enough, what is left
   to check, or which words of the claim matter. If they ask what to try, ask what they want to
   find out next. If they ask whether they are done, say that this is their call: once they have a
-  verdict, they type it, and the sentences most important for it, in WRITEUP.md, in their editor.
+  verdict, they type it, and the sentences it is based on, in WRITEUP.md, in their editor.
 - After a lookup, paste what came back, then end with one line: they tell you their next lookup
   (which tool, with what words), or, once they have a verdict, they type it in WRITEUP.md, in
   their editor. Do not add a tip about what another tool, a section or a different query would
@@ -879,7 +879,7 @@ text you replace. If the file holds lookups that were not part of this check, as
 leave out. After filling the table, end with what comes next: in their editor, they type "Why you
 chose it" for each row and their answer to the question under the table.
 
-Their verdict, and which sentences are most important for it, are theirs to write. Never say
+Their verdict, and which sentences it is based on, are theirs to write. Never say
 whether a verdict is right.
 '''
 
@@ -893,7 +893,7 @@ minutes = 25
 slots = ["1c.*"]
 files = ["runs/part1/before/report.txt"]
 allow = ["Bash(uv run python evaluate.py:*)", "Bash(uv run python check.py:*)"]
-summary = "In this step you find out whether the agent matches the dataset's label on your 12 development claims."
+summary = "In this step you find out whether the agent matches the dataset's label on your 12 development claims, and whether it got there for a good reason."
 checkpoints = [
   { text = "The agent's run on your 12 development claims is saved", task = "Ask Claude to run the agent on your 12 development claims.", files = ["runs/part1/before/report.txt"] },
   { text = "You have read three traces closely in the results viewer: one claim each that needs 2, 3 and 4 Wikipedia articles", task = "In the results viewer, read three traces closely. Pick one claim each that needs 2, 3 and 4 Wikipedia articles.", tick = false },
@@ -1035,7 +1035,7 @@ allow = ["Bash(uv run python evaluate.py:*)"]
 run_yourself = { command = "uv run python evaluate.py data/eval.jsonl --out runs/part2", note = "About 10 minutes and about 28 cents on your key. Leave that tab open and your laptop awake until it ends with two tables. Fill in your predictions while it runs, and don't look at its results before they are saved." }
 # Show no link to the results while the run goes: predictions come first.
 hide_results = true
-summary = "In this step you start the run on your 100 evaluation claims."
+summary = "In this step you start the run on your 100 evaluation claims, and predict its results while it runs."
 checkpoints = [
   { text = "The full run has started", task = "In a terminal tab of your own, start the full run.", files = ["runs/part2/no-tools.jsonl"] },
   { text = "Your predictions and answer are in WRITEUP.md", slots = ["1e.*"] },
@@ -1063,7 +1063,7 @@ Once they say the run has started, say that in one line: next, they type their p
 their answer in WRITEUP.md while it runs. For each
 version they guess the share of claims it will get right, as a percentage, for claims that need
 2, 3 and 4 articles, with a reason. Then they answer how many lookups the agent will make per
-claim on average, and whether that will grow with the number of articles. A guess is fine; the
+claim on average, and why. A guess is fine; the
 reasons are what is graded.
 
 Never suggest a number or a reason. Never say what the run has shown so far, and do not open
@@ -1186,12 +1186,12 @@ part = 3
 title = "Sort the failures"
 page = "instructions/part3.md"
 section = "3a. Sort the failures"
-minutes = 32
+minutes = 45
 slots = ["3a.*"]
 allow = []
 summary = "In this step you find out why the agent fails on your evaluation claims."
 checkpoints = [
-  { text = "You have labeled each of the eight failures in your table, with the entry of the trace that shows it and whether the dataset's label is right", task = "In your editor, label each of the eight failures in your table, with the entry of the trace that shows it, and say whether the dataset's label is right." },
+  { text = "You have labeled each of the eight failures in your table, with the entry of the trace that shows it and whether the dataset's label is right", task = "In the results viewer, read the trace of each of the first eight failures (Actions says how to find them), and in your editor label each one in the table under 3a, with the entry of the trace that shows it, and say whether the dataset's label is right." },
   { text = "Claude has given its own labels, without seeing yours", task = "Ask Claude to label the same claims. It gives its labels without seeing yours." },
   { text = "Claude's labels are in the last column of your table", task = "Put Claude's labels in the last column of your table: ask Claude to, or type them in your editor." },
   { text = "Your answers are in WRITEUP.md", slots = ["3a.*"] },
@@ -1281,12 +1281,12 @@ part = 3
 title = "Make one change"
 page = "instructions/part3.md"
 section = "3b. Make one change"
-minutes = 28
+minutes = 45
 slots = ["3b.*"]
 files = ["runs/part3/after/report.txt"]
 allow = ["Bash(uv run python evaluate.py:*)", "Bash(uv run python check.py:*)", "Bash(uv run python check_loop.py)", "Edit(instructions.md)", "Edit(my_loop.py)"]
 run_yourself = { command = "uv run python evaluate.py data/eval.jsonl --methods agent --out runs/part3/after", note = "About 6 minutes and about 21 cents on your key. Start it only after you have made your change. Leave that tab open, your laptop awake and your change alone until it ends with two tables." }
-summary = "In this step you make one change aimed at your most common failure. You find out whether it fixes that failure on your evaluation claims."
+summary = "In this step you make one change aimed at your most common failure. You find out whether it fixes that failure on your evaluation claims. First, you make your loop count tokens, so that you see what the run costs."
 checkpoints = [
   { text = "Your loop counts tokens, and the check passes it", task = "Make your loop count tokens: add it to your outline and ask Claude to translate it again (or add it to Python you wrote yourself), then ask Claude to run the check until the line \"Count the tokens (extra credit)\" says ok." },
   { text = "You have made one change", task = "Make one change, in your editor or by asking Claude." },
@@ -1374,7 +1374,7 @@ type their answers to the step's three questions in WRITEUP.md, in their editor.
 to reply here. The page shows comparing the two runs with no tick: never tick it or ask whether
 they have done it.
 
-Whether it fixed the failure, the numbers before and after, which of their eight failures now
+Whether it fixed the failure, the numbers before and after, which of their failures from 3a now
 match, and which claim went from matching to not matching, are theirs to say. You may show either
 report when asked. If they ask whether a difference is real: the model does not give the same
 answer every time, so a difference of a few claims can be chance.
@@ -1386,7 +1386,7 @@ part = 3
 title = "Write it up"
 page = "instructions/part3.md"
 section = "3c. Write it up"
-minutes = 20
+minutes = 30
 slots = ["3c.*"]
 summary = "In this step you say what you learned, in your own words."
 checkpoints = [
