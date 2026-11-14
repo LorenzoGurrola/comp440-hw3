@@ -72,6 +72,9 @@ LOOKUPS = re.compile(r"^Lookups: (\d+)", re.M)
 
 
 KEY = re.compile(r"sk-ant-[^\s\"'`<>]*")
+# A write-up question that asks Claude to paste output into it (1b's table, 2a's report): the page
+# says where its answer goes, not that the student types it.
+PASTED = "Ask Claude to paste"
 # The message that starts a step, in a new session ("Start step 0b.") or in one that was on another
 # step (the page's prompt to continue). A conversation's stretch for a step runs from it to the next.
 START = re.compile(r"^Start step (\d+[a-z])\.")
@@ -504,7 +507,9 @@ class StepSession:
             now = {"plain": f"type your {open_q['question'].lower()} after {open_q['question']}: at the top "
                             f"of {a.writeup}, in your editor."}
         elif open_q:
-            now = {"question": open_q["question"], "how": f"Write your answer in {a.writeup}, under {label}, in your editor."}
+            how = (f"It goes in {a.writeup}, under {label}." if PASTED in open_q["question"]
+                   else f"Write your answer in {a.writeup}, under {label}, in your editor.")
+            now = {"question": open_q["question"], "how": how}
         else:
             now = {"todo": todo} if todo and not st["complete"] else {"done": True}
         shown = entries if last is None else entries[-last:]
@@ -516,8 +521,10 @@ class StepSession:
     def slot(self, k: str, slots: dict[str, str]) -> dict:
         """One answer slot as the page shows it: its question, the answer, and where to type it."""
         plain = " / " not in k                  # Name: at the top of the write-up
-        where = (f"Not written yet. Type it after {k}: at the top of {self.hub.assignment.writeup}." if plain else
-                 f"Not written yet. Type it in {self.hub.assignment.writeup}, under {self.hub.assignment.label(self.step)}.")
+        wp, label = self.hub.assignment.writeup, self.hub.assignment.label(self.step)
+        where = (f"Not written yet. Type it after {k}: at the top of {wp}." if plain else
+                 f"Not written yet. It goes in {wp}, under {label}." if PASTED in k.split(" / ")[-1] else
+                 f"Not written yet. Type it in {wp}, under {label}.")
         return {"question": k.split(" / ")[-1], "answer": slots.get(k, ""), "filled": filled(slots.get(k)),
                 "plain": plain, "todo": where}
 

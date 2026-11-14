@@ -785,6 +785,28 @@ def test_the_name_has_its_own_plain_now_line(tmp_path):
            "terminal, type /exit first." in js
 
 
+def test_a_question_claude_pastes_into_says_where_it_goes_not_that_the_student_types_it(tmp_path):
+    """The flow simulations of Nov 14: under 1b's "List your lookups ... Ask Claude to paste every
+    column but the last ..." the page said "Type it in WRITEUP.md, under 1b.", though Claude fills
+    those columns. Such a question's line and the record's "Now:" line say where it goes; a question
+    the student answers keeps "Type it" and "Write your answer"."""
+    pasted = "Ask Claude to paste what it printed into the empty block below."
+    writeup = WRITEUP.replace("Name:", "Name: Sam").replace("What did it say?\n\n>", f"{pasted}\n\n```\n```")
+    h = homework(tmp_path, {"WRITEUP.md": writeup})
+    app = server.App(h.student)
+    rec = app.hub.sessions["0b"].record()
+    assert rec["now"] == {"question": pasted, "how": "It goes in WRITEUP.md, under 0b."}
+    todo = {x["question"]: x["todo"] for c in rec["checkpoints"] for x in c["slots"]}
+    assert todo == {pasted: "Not written yet. It goes in WRITEUP.md, under 0b.",
+                    "How much would you trust it, and why?": "Not written yet. Type it in WRITEUP.md, under 0b."}
+    (h.student / "WRITEUP.md").write_text(writeup.replace("```\n```", "```\nVerdict: supported\n```"))
+    assert app.hub.sessions["0b"].record()["now"] == {
+        "question": "How much would you trust it, and why?", "how": "Write your answer in WRITEUP.md, under 0b, in your editor."}
+    # In the real write-up, the questions Claude pastes into are 1b's table and 2a's report, and no other.
+    real = steps.read_slots((ROOT / "WRITEUP.md").read_text(encoding="utf-8"))
+    assert sorted(k.split(" / ")[1][:2] for k in real if "Ask Claude to paste" in k.split(" / ")[-1]) == ["1b", "2a"]
+
+
 def test_a_step_can_carry_a_command_the_student_runs_themselves(tmp_path):
     own = ("uv run python evaluate.py data/eval.jsonl --out \"runs/part 2\" --note 'the student\'s run'")
     literal = "'" * 3 + own + "'" * 3                     # a TOML literal string
