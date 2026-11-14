@@ -983,7 +983,9 @@ instructions, and when they ask, say whether their file speaks to each of the fo
 names. Whether what they wrote is any good is theirs to find out from the traces.
 
 When they say they have written their instructions, check that the file has changed with
-`git diff --stat -- instructions.md`, and tick checkpoint 1.
+`git diff --stat -- instructions.md`, and tick checkpoint 1. The tick depends only on the file having
+changed, not on what it says: when you tick it, say only that the file has changed. Say whether it
+speaks to each of the four points the task names only when they ask.
 
 The step has one round: the student writes their instructions once, and you run the agent once
 after that, on their 12 development claims (about a minute, and about 2 cents, or more if their

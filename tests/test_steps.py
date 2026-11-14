@@ -416,6 +416,16 @@ def test_tasks_only_the_student_can_see_done_have_no_tick(a):
         assert "when they say they have" not in flat(s.brief) or s.id == "3a", s.id
 
 
+def test_1d_ticks_on_a_changed_file_and_judges_the_four_points_only_when_asked(a):
+    """The flow simulations of Nov 14, runs A and C: both tutors volunteered "it covers each of the
+    four points the task names, so I ticked that task", a judgment the brief allowed only when asked."""
+    brief = flat(a.step("1d").brief)
+    assert ("check that the file has changed with `git diff --stat -- instructions.md`, and tick checkpoint 1. "
+            "The tick depends only on the file having changed, not on what it says: when you tick it, say only "
+            "that the file has changed. Say whether it speaks to each of the four points the task names only "
+            "when they ask.") in brief
+
+
 def test_every_task_says_where_it_happens(a):
     bad = []
     for s in a.steps:
