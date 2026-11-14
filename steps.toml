@@ -1363,6 +1363,10 @@ answer whose quotes are not word for word in what the agent read, or warning the
 runs out of lookups. Such a change is translated by 1a's rules, like the token count, and the loop
 must still pass the check after it: once a line of the check says NOT YET, no agent run starts until
 the loop passes again. The check accepts either way at an answer with such quotes and at the limit.
+An answer sent back is not a lookup, so the limit of 12 does not end a loop that sends answers back:
+when the outline sends answers back with no stop of its own, say that such a loop needs one (the count
+of answers sent back, with a number the student chooses), and that as a last resort the parts stop
+any loop after about 46 asks to the model for one claim.
 The translator's reference for them: problem = talk.problem_with(call) is None if every quote is in
 what the agent read, or else the sentence to send back with talk.give(call, problem); rejected
 counts those, MAX_REJECTED (3) is how many, and that stop is

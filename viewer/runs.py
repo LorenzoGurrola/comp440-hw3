@@ -822,7 +822,8 @@ def quote_places(row: dict) -> list[dict]:
     checked, so the results viewer says which, beside each quote."""
     places = []
     texts = [(n, c) for n, c in enumerate(row["trace"])
-             if c["tool"] not in ("answer", "(reminder)", "(refusal)") and not OUT_OF_STEPS.search(c["result"])]
+             if c["tool"] not in ("answer", "(reminder)", "(refusal)", "(stopped)")
+             and not OUT_OF_STEPS.search(c["result"])]
     seen = normalize(" ".join(read_texts(row)))
     for q in row["evidence"]:
         hits = []

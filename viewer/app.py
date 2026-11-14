@@ -1022,7 +1022,8 @@ def trace_counts(trace: list) -> str:
     answers = sum(1 for c in trace if c["tool"] == "answer")
     reminders = sum(1 for c in trace if c["tool"] == "(reminder)")
     declined = sum(1 for c in trace if c["tool"] == "(refusal)")
-    lookups = len(trace) - len(refused) - answers - reminders - declined
+    stopped = sum(1 for c in trace if c["tool"] == "(stopped)")
+    lookups = len(trace) - len(refused) - answers - reminders - declined - stopped
     bits = [plural(lookups, "lookup") + " (<code>search</code>, <code>read</code> or <code>wikidata</code>)"]
     if refused:
         bits.append(plural(len(refused), "lookup") + " refused because the agent had already used all "
@@ -1033,6 +1034,8 @@ def trace_counts(trace: list) -> str:
         bits.append(plural(reminders, "reminder") + " from the loop to call answer()")
     if declined:
         bits.append("the model's refusal to check the claim")
+    if stopped:
+        bits.append("the stop after the agent had asked the model too many times")
     return f'This trace has {plural(len(trace), "entry", "entries")}: ' + and_list(bits) + "."
 
 

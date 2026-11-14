@@ -320,7 +320,13 @@ def test_3b_offers_a_change_to_the_loop(a):
                  "Such a change is translated by 1a's rules",
                  "talk.stop(REJECTED_TOO_OFTEN.format(n=rejected), steps, tokens)",
                  "talk.give(call, OUT_OF_STEPS.format(n=max_steps))",
-                 "never propose a change"):
+                 "never propose a change",
+                 # Nov 14, the 3b live check: the tutor said such a loop "goes on until the limit of 12".
+                 "An answer sent back is not a lookup, so the limit of 12 does not end a loop that sends "
+                 "answers back: when the outline sends answers back with no stop of its own, say that such "
+                 "a loop needs one (the count of answers sent back, with a number the student chooses), and "
+                 "that as a last resort the parts stop any loop after about 46 asks to the model for one "
+                 "claim."):     # 46 is 3 * MAX_STEPS + 10, pinned in test_agent.py
         assert must in brief, must
     assert "If they propose a change to the loop as their one change" not in brief
 

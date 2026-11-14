@@ -386,6 +386,24 @@ def test_a_refusal_and_a_reminder_in_a_trace_are_named(repo):
     assert "The model declined to check this claim." in words
 
 
+def test_the_parts_stop_after_too_many_calls_to_the_model_is_named(repo):
+    """Nov 14: the parts stop a loop that has called the model 3 * MAX_STEPS + 10 times for one claim
+    (a loop that sends answers back with no count of its own). The claim's page gives the sentence,
+    as the explanation and as the trace's last entry, and the stop is not counted as a lookup."""
+    why = agent.TOO_MANY_ASKS.format(n=46)
+    sent_back = {"tool": "answer",
+                 "input": {"verdict": "supported", "evidence": ["Made up."], "explanation": "x"},
+                 "result": agent.REJECTED + "These quotes are not in anything you read: Made up."}
+    trace = [sent_back] * 46 + [{"tool": "(stopped)", "input": {}, "result": why}]
+    rows = full_rows()["agent"]
+    rows[0] = result("agent", "h1", None, steps=0, trace=trace, explanation=why)
+    write_jsonl(repo / "runs" / "part2" / "agent.jsonl", rows)
+    words = text_of(get(repo, "/results/claim?dir=runs/part2&id=h1")[2])
+    assert "This trace has 47 entries: 0 lookups" in words
+    assert "46 answers and the stop after the agent had asked the model too many times." in words
+    assert words.count("The agent asked the model 46 times for this claim and was stopped.") == 2
+
+
 def test_long_results_are_folded_but_reachable(repo):
     long_text = "Page: Delta\n\n" + "Delta is a town. " * 200
     trace = [{"tool": "read", "input": {"title": "Delta"}, "result": long_text},

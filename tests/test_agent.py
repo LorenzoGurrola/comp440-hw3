@@ -241,6 +241,107 @@ def test_a_reply_after_a_reminder_counts_the_tokens_of_both_asks():
     assert step.answer is not None and step.lookups == []
 
 
+# ---------- the parts' last resort: no more than 3 * MAX_STEPS + 10 calls to the model ----------
+# An answer sent back is not a lookup, so the limit of lookups never ends a loop that sends answers
+# back. The 3b live check of Nov 14 found that such a loop with no count of its own passes the
+# check, and on a model that keeps quoting what it never read would ask it again and again.
+
+def sends_back_every_answer(claude, max_steps=agent.MAX_STEPS):
+    """A loop a student might write in 3b: it sends back every answer whose quotes are not in what
+    the agent read, and keeps no count of the answers it sends back."""
+    import loop_parts
+    talk = loop_parts.Conversation("claim", claude, "", [{"role": "user", "content": "Claim: c"}], [], [],
+                                   fake_lookup)
+    steps = 0
+    while True:
+        reply = talk.ask()
+        if reply.answer:
+            problem = talk.problem_with(reply.answer)
+            if problem is None:
+                return talk.accept(reply.answer, steps)
+            talk.give(reply.answer, problem)
+        elif steps >= max_steps:
+            return talk.stop(agent.RAN_OUT, steps)
+        for call in reply.lookups:
+            talk.give(call, talk.run(call))
+            steps += 1
+        talk.send_results()
+
+
+def made_up_answers(n):
+    return [reply(tool_use("answer", MADE_UP, i)) for i in range(n)]
+
+
+def test_a_loop_that_sends_back_every_answer_is_stopped_after_46_calls():
+    claude = Sent(made_up_answers(100))
+    result = sends_back_every_answer(claude)
+    well_formed(claude.sent)
+    assert len(claude.sent) == 46 == 3 * agent.MAX_STEPS + 10
+    assert result["verdict"] is None and result["evidence"] == [] and result["steps"] == 0
+    assert result["explanation"] == agent.TOO_MANY_ASKS.format(n=46) == \
+        "The agent asked the model 46 times for this claim and was stopped."
+    assert [t["tool"] for t in result["trace"]] == ["answer"] * 46 + ["(stopped)"]
+    assert result["trace"][-1] == {"tool": "(stopped)", "input": {}, "result": result["explanation"]}
+
+
+@pytest.mark.parametrize("max_steps", [1, 20])
+def test_the_hard_stop_follows_max_steps(monkeypatch, max_steps):
+    monkeypatch.setattr(agent, "MAX_STEPS", max_steps)        # read when the Conversation is made
+    claude = Sent(made_up_answers(100))
+    result = sends_back_every_answer(claude, max_steps)
+    well_formed(claude.sent)
+    assert len(claude.sent) == 3 * max_steps + 10
+    assert result["explanation"] == agent.TOO_MANY_ASKS.format(n=3 * max_steps + 10)
+
+
+def test_the_hard_stop_can_fall_between_a_reply_that_asks_for_nothing_and_its_reminder(monkeypatch):
+    monkeypatch.setattr(agent, "MAX_STEPS", 1)               # 13 calls at most: two for each ask
+    claude = Sent([r for i in range(10) for r in (reply(NOTHING, stop="end_turn"),
+                                                  reply(tool_use("answer", MADE_UP, i)))])
+    result = sends_back_every_answer(claude, 1)
+    well_formed(claude.sent)
+    assert len(claude.sent) == 13
+    assert [t["tool"] for t in result["trace"]] == ["(reminder)", "answer"] * 6 + ["(stopped)"]
+    assert result["explanation"] == agent.TOO_MANY_ASKS.format(n=13)
+
+
+def test_a_loop_that_asks_again_after_the_hard_stop_stops_with_an_error(monkeypatch):
+    import loop_parts
+    monkeypatch.setattr(agent, "MAX_STEPS", 1)
+    claude = Sent(made_up_answers(20))
+    talk = loop_parts.Conversation("claim", claude, "", [{"role": "user", "content": "Claim: c"}], [], [],
+                                   fake_lookup)
+    for _ in range(13):
+        step = talk.ask()
+        talk.give(step.answer, "Answer rejected. ")
+        talk.send_results()
+    step = talk.ask()
+    assert step.answer.why == agent.TOO_MANY_ASKS.format(n=13) and step.lookups == []
+    assert (step.usage.input_tokens, step.usage.output_tokens) == (0, 0)
+    with pytest.raises(RuntimeError, match="The loop asked again after that."):
+        talk.ask()
+    assert len(claude.sent) == 13
+
+
+def test_evaluate_counts_the_hard_stop_as_no_verdict(monkeypatch, tmp_path, capsys):
+    import json
+    record = tmp_path / "runs" / "part1" / "loop-check.txt"
+    record.parent.mkdir(parents=True)
+    record.write_text("yours\n")
+    monkeypatch.setattr(agent, "LOOP_CHECK", record)
+    monkeypatch.setitem(evaluate.METHODS, "agent",
+                        lambda claim: sends_back_every_answer(Sent(made_up_answers(50))))
+    claims = tmp_path / "claims.jsonl"
+    claims.write_text(json.dumps({"id": "c1", "claim": "claim", "source": "hover", "label": "SUPPORTED",
+                                  "hops": 2}) + "\n")
+    monkeypatch.setattr(sys, "argv", ["evaluate.py", str(claims), "--methods", "agent",
+                                      "--out", str(tmp_path / "run")])
+    evaluate.main()
+    assert "1 runs gave no verdict (for example a refusal, or out of lookups)." in capsys.readouterr().out
+    row = json.loads((tmp_path / "run" / "agent.jsonl").read_text())
+    assert row["verdict"] is None and row["explanation"] == agent.TOO_MANY_ASKS.format(n=46)
+
+
 def test_scoring_hover_and_fever():
     hover_true = {"source": "hover", "label": "SUPPORTED"}
     hover_false = {"source": "hover", "label": "NOT_SUPPORTED"}

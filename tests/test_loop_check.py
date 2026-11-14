@@ -862,6 +862,63 @@ def test_where_the_plainest_loop_and_the_full_loop_differ_the_check_takes_either
     assert check_loop.check(a_loop(tmp_path, KIT_REFERENCE)) == check_loop.check(a_loop(tmp_path, FULL_LOOP))
 
 
+class Endless:
+    """A stand-in model that never gives up: its replies follow the pattern, over and over. It keeps
+    each request's conversation as it was sent."""
+
+    def __init__(self, pattern):
+        self.messages, self.pattern, self.sent = self, pattern, []
+
+    def create(self, **request):
+        self.sent.append(repr(request["messages"]))
+        k = len(self.sent)
+        blocks = []
+        for kind in self.pattern[(k - 1) % len(self.pattern)]:
+            if kind == "nothing":
+                blocks.append(SimpleNamespace(type="text", text="I think it's true."))
+            elif kind == "lookup":
+                blocks.append(SimpleNamespace(type="tool_use", name="search", input={"query": f"q{k}"},
+                                              id=f"s{k}"))
+            else:                       # an answer that quotes what the agent never read
+                blocks.append(SimpleNamespace(type="tool_use", name="answer", id=f"a{k}", input={
+                    "verdict": "supported", "evidence": ["Zemeckis was born in Ohio."], "explanation": "x"}))
+        stop = "tool_use" if any(b.type == "tool_use" for b in blocks) else "end_turn"
+        return SimpleNamespace(content=blocks, stop_reason=stop,
+                               usage=SimpleNamespace(input_tokens=1, output_tokens=1))
+
+
+ENDLESS = {"a lookup every time": [("lookup",)],
+           "nothing, then a lookup": [("nothing",), ("lookup",)],
+           "a made-up answer every time": [("answer",)],
+           "nothing, then a made-up answer": [("nothing",), ("answer",)],
+           "a lookup and a made-up answer": [("lookup", "answer")]}
+
+
+@pytest.mark.parametrize("pattern", ENDLESS)
+@pytest.mark.parametrize("source", [KIT_REFERENCE, FULL_LOOP], ids=["the-reference-loop", "the-full-loop"])
+def test_the_plainest_loop_and_the_full_loop_never_reach_the_parts_hard_stop(tmp_path, monkeypatch, source,
+                                                                             pattern):
+    """Nov 14: the parts stop any loop after 3 * MAX_STEPS + 10 calls to the model for one claim. Each
+    ask of these two loops either ends the loop or is followed by a lookup, a sent-back answer or a
+    warning, all of them limited, so on a model that never gives up they stop by themselves, well
+    before that, and send the same requests as with the hard stop out of reach."""
+    module = check_loop.load(str(a_loop(tmp_path, source).resolve()))
+    limit = agent.MAX_STEPS
+
+    def run():
+        model = Endless(ENDLESS[pattern])
+        result = module.run_agent(check_loop.CLAIM, client=model, max_steps=limit,
+                                  lookup=lambda name, args: "Some text.")
+        return model.sent, result
+
+    sent, result = run()
+    assert len(sent) <= 2 * limit + 8 < 3 * limit + 10
+    assert result["explanation"] != agent.TOO_MANY_ASKS.format(n=len(sent))
+    assert "(stopped)" not in [entry["tool"] for entry in result["trace"]]
+    monkeypatch.setattr(agent, "MAX_STEPS", 10 ** 6)         # the hard stop out of reach
+    assert run() == (sent, result)
+
+
 def renamed(source, *names):
     for name in names:
         source = re.sub(rf"\b{name}\b", f"my_{name}", source)

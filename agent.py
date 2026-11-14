@@ -148,8 +148,9 @@ def answer_problem(answer, read_so_far):
 
 # The exact sentences a loop uses, so that check_loop.py, the results viewer
 # and every loop agree on them. The reference loop uses ACCEPTED and RAN_OUT, and
-# the parts in loop_parts.py use REMINDER, REMINDED, NO_ANSWER and DECLINED; the
-# rest are for a loop that checks quotes or warns the model at the limit.
+# the parts in loop_parts.py use REMINDER, REMINDED, NO_ANSWER, DECLINED and
+# TOO_MANY_ASKS; the rest are for a loop that checks quotes or warns the model at
+# the limit.
 ACCEPTED = "accepted"                                   # the result recorded for an accepted answer
 REJECTED = "Answer rejected. "                          # followed by what answer_problem() said
 REJECTED_TOO_OFTEN = "The agent's answer was rejected {n} times."
@@ -159,6 +160,8 @@ REMINDER = "Please finish by calling answer()."          # sent to the model
 REMINDED = "Asked it to call answer()."                  # recorded in the trace, tool "(reminder)"
 NO_ANSWER = "The agent stopped without answering."
 DECLINED = "The model declined to check this claim."     # also recorded in the trace, tool "(refusal)"
+# The parts' last resort, for a loop with no stop of its own: also recorded in the trace, tool "(stopped)".
+TOO_MANY_ASKS = "The agent asked the model {n} times for this claim and was stopped."
 
 
 def finish(claim, verdict, evidence, explanation, trace, steps, tokens=None):
