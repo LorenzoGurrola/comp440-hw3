@@ -18,13 +18,11 @@ or 4).
 
 **Actions:**
 
-1. Start this step with Claude: paste its prompt from the homework page into the Claude session you
-   have open, or start a new session with its command (type `/exit` first if another session is
-   open in that terminal).
-2. Check that the full run has finished: it ends with two tables in the tab where you started it.
-3. Open **Results** at the top of the homework page, then "runs/part2", and read "Accuracy".
-4. Ask Claude to paste the report into the empty block under 2a in `WRITEUP.md`.
-5. Type your answers to the three questions in `WRITEUP.md`, in your editor, under 2a.
+1. Check that the full run has finished: the homework page ticks this when it has. If it has not,
+   start it again in a terminal tab of your own (see Troubleshooting).
+2. Open **Results** at the top of the homework page, then "runs/part2", and read "Accuracy".
+3. Ask Claude to paste the report into the empty block under 2a in `WRITEUP.md`.
+4. Type your answers to the three questions in `WRITEUP.md`, in your editor, under 2a.
 
 **Interpreting output:** The report's first table gives, for each version, how many claims matched the
 dataset's label out of how many: by number of articles, for all 100, and by the dataset's label. The
@@ -52,18 +50,15 @@ In this step you find out whether the agent's quoted evidence really supports it
 
 **Actions:**
 
-1. Start this step with Claude: paste its prompt from the homework page into the Claude session you
-   have open, or start a new session with its command (type `/exit` first if another session is
-   open in that terminal).
-2. Open **Results** at the top of the homework page, then "runs/part2".
-3. Click "Clear the filters" under the claims filters.
-4. Set "Verdict" in "The agent" box to "supported or refuted"; leave "Order" at "Order of the claims file".
-5. Click row 1. Under "Quoted evidence", click each "entry N" to read that quote highlighted in the trace.
-6. Decide whether the quoted evidence supports the agent's verdict. If you are unsure, click "open the
+1. Open **Results** at the top of the homework page, then "runs/part2".
+2. Click "Clear the filters" under the claims filters.
+3. Set "Verdict" in "The agent" box to "supported or refuted"; leave "Order" at "Order of the claims file".
+4. Click row 1. Under "Quoted evidence", click each "entry N" to read that quote highlighted in the trace.
+5. Decide whether the quoted evidence supports the agent's verdict. If you are unsure, click "open the
    live page" to see today's page at that quote.
-7. Fill in its row of the table in `WRITEUP.md`, in your editor, under 2b. In the results viewer, click
+6. Fill in its row of the table in `WRITEUP.md`, in your editor, under 2b. In the results viewer, click
    "Next →" and do the same for each row up to row 5.
-8. Type your answers to the two questions in `WRITEUP.md`, in your editor, under 2b.
+7. Type your answers to the two questions in `WRITEUP.md`, in your editor, under 2b.
 
 **Interpreting output:** Under "The agent", a claim's page says whether its verdict "matches the
 dataset's label": that is the table's fourth column. To read more of a page as the agent read it, ask

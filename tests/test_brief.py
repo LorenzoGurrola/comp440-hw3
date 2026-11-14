@@ -445,8 +445,8 @@ def test_0d_asks_about_wikidata_and_says_how_to_find_out():
     asked = questions(sections(WRITEUP.read_text(encoding="utf-8"))["0d. Run the agent and read its trace"])
     assert len(asked) == 3 and asked[-1] == question
     page = one_line(sections((ROOT / "instructions/part0.md").read_text(encoding="utf-8"))["0d. Run the agent and read its trace"])
-    assert "4. Find out what Wikidata is: ask Claude, or look at wikidata.org. " \
-           "5. Type your answers to the three questions in `WRITEUP.md`, in your editor, under 0d." in page
+    assert "3. Find out what Wikidata is: ask Claude, or look at wikidata.org. " \
+           "4. Type your answers to the three questions in `WRITEUP.md`, in your editor, under 0d." in page
     assert f"- {question}" in page
 
 

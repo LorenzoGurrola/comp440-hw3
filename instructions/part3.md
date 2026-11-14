@@ -12,31 +12,29 @@ Back to the [assignment page](../README.md).
 
 In this step you find out why the agent fails on your evaluation claims.
 
-**Words in this step:** A *failure* is a claim where the agent's verdict, in your full run from 1e, does
-not match the dataset's label.
+**Words in this step:** A *failure* is a claim where the agent's verdict, in your full run, does not
+match the dataset's label.
 
 **Actions:**
 
-1. Start this step with Claude: paste its prompt from the homework page into the Claude session you
-   have open, or start a new session with its command (type `/exit` first if another session is
-   open in that terminal).
-2. Open **Results** at the top of the homework page, then "runs/part2".
-3. Click "Clear the filters", then set "Result" in "The agent" box to "does not match the dataset's label
+1. Open **Results** at the top of the homework page, then "runs/part2".
+2. Click "Clear the filters", then set "Result" in "The agent" box to "does not match the dataset's label
    (any reason)"; leave "Order" at "Order of the claims file".
-4. Click row 1 and read "The agent's trace", one entry at a time.
-5. Give it one of these labels, without telling Claude, and decide whether the dataset's label is right:
+3. Click row 1 and read "The agent's trace", one entry at a time.
+4. Give it one of these labels, without telling Claude, and decide whether the dataset's label is right:
    - *wrong page*: The agent never found the page that settles the claim.
    - *stopped too early*: The agent answered before checking every piece of the claim.
    - *misread*: The agent read the right page and drew the wrong conclusion.
    - *forced a verdict*: The agent answered *supported* or *refuted* when Wikipedia does not settle the claim.
    - *Wikipedia is missing or wrong*: The agent did what it should, and Wikipedia lacks the fact or has it wrong.
-   - *the dataset's label is wrong*: The agent's verdict is right, and the dataset's label is not.
+   - *the dataset's label is wrong*: The agent's verdict is right, and the dataset's label is not. If you
+     answer no under "Is the dataset's label right?", give this label.
    - If none of these fits, give a label of your own.
-6. Fill in its row of the table in `WRITEUP.md`, in your editor, under 3a. In the results viewer, click
+5. Fill in its row of the table in `WRITEUP.md`, in your editor, under 3a. In the results viewer, click
    "Next →" and do the same for each row up to row 8.
-7. Ask Claude to label the same claims. It gives its labels without seeing yours.
-8. Ask Claude to add its labels to the "Claude's label" column, or type them in yourself, in your editor.
-9. Type your answers to the two questions in `WRITEUP.md`, in your editor, under 3a.
+6. Ask Claude to label the same claims. It gives its labels without seeing yours.
+7. Ask Claude to add its labels to the "Claude's label" column, or type them in yourself, in your editor.
+8. Type your answers to the two questions in `WRITEUP.md`, in your editor, under 3a.
 
 **Interpreting output:** Claude labels from the traces alone, and may give *the dataset's label is
 wrong* when the evidence the agent quoted goes against the label. It will not tell you which label to
@@ -49,8 +47,9 @@ give a trace, or say which of you is right.
 - Which kind of failure was most common? If no kind repeats, say which failure you will aim at in 3b, and why.
 
 **Hint:** For "The entry of the trace that shows it", give the entry's number and a few words of what it
-shows. For "Is the dataset's label right?", go by what you know: people made the dataset's labels from
-the Wikipedia of 2017, and you may know a claim's subject better than they did.
+shows. For "Is the dataset's label right?", go by the agent's quoted evidence and today's Wikipedia,
+which you may open in your browser; people made the dataset's labels from the Wikipedia of 2017. "Can't
+tell" is a fine answer.
 
 ## 3b. Make one change
 
@@ -62,32 +61,27 @@ three quarters of a word. Each reply from the model says how many tokens it used
 
 **Actions:**
 
-1. Start this step with Claude: paste its prompt from the homework page into the Claude session you
-   have open, or start a new session with its command (type `/exit` first if another session is
-   open in that terminal).
-2. First, make your loop count tokens, so that the run after your change shows what it cost. In your
+1. First, make your loop count tokens, so that the run after your change shows what it cost. In your
    editor, add it to your outline in `WRITEUP.md`, under 1a: the loop remembers how many tokens the
    model's replies have used, input and output (none yet); each time a reply comes back, it adds that
-   reply's tokens; and every time the loop stops, it passes the count on. Then ask Claude to translate
-   your outline again. If you wrote the Python yourself, keep the count as
-   `tokens = {"input": 0, "output": 0}`, add each reply's `.usage.input_tokens` and
-   `.usage.output_tokens` to it, and pass `tokens` last in every `talk.accept(...)` and
-   `talk.stop(...)` (or every `finish(...)`, in a loop without the parts).
-3. Ask Claude to run the check. Its last line, "Count the tokens (extra credit)", must say `ok`, like
-   the six rules above it.
-4. Decide on **one** change aimed at your most common failure from 3a (see the Hint).
-5. Make the change in your editor, or tell Claude exactly what to change.
-6. Start the run yourself, in another terminal tab in the homework's folder:
+   reply's tokens; and every time the loop stops, it returns the count along with the answer, or with
+   no verdict. Then ask Claude to translate your outline again. If you wrote the Python yourself, see
+   Troubleshooting.
+2. Ask Claude to run the check. The line "Count the tokens (extra credit)", printed after the six rules,
+   must say `ok`, like them.
+3. Decide on **one** change aimed at your most common failure from 3a (see the Hint).
+4. Make the change in your editor, or tell Claude exactly what to change.
+5. Start the run yourself, in another terminal tab in the homework's folder:
    `uv run python evaluate.py data/eval.jsonl --methods agent --out runs/part3/after`.
-7. Leave that tab open, your laptop awake and your change alone until the run ends with two tables.
-8. Open **Results** at the top of the homework page, click "Compare two runs", then "Step 3b:
+6. Leave that tab open, your laptop awake and your change alone until the run ends with two tables.
+7. Open **Results** at the top of the homework page, click "Compare two runs", then "Step 3b:
    runs/part2 with runs/part3/after".
-9. Read "Accuracy". Then, under "Claims that changed", set "Change" to "does not match in A, matches in
+8. Read "Accuracy". Then, under "Claims that changed", set "Change" to "does not match in A, matches in
    B", and then to "matches in A, does not match in B".
-10. Type your answers to the three questions in `WRITEUP.md`, in your editor, under 3b.
+9. Type your answers to the three questions in `WRITEUP.md`, in your editor, under 3b.
 
-**Interpreting output:** Once the check's last line says `ok`, `check.py`, `evaluate.py` and the results
-viewer show tokens and cost for every run, the baselines' in `runs/part2` too; the agent's results saved
+**Interpreting output:** Once the line "Count the tokens (extra credit)" says `ok`, `check.py`,
+`evaluate.py` and the results viewer show tokens and cost for every run, the baselines' in `runs/part2` too; the agent's results saved
 before that say "not counted". The run takes about 6 minutes and costs about 21 cents on your key. In the
 comparison, A is your full run, `runs/part2`, and B is this run, `runs/part3/after`. The model does not
 give the same answer every time, so a difference of a few claims between the two runs can be chance.
@@ -100,11 +94,14 @@ give the same answer every time, so a difference of a few claims between the two
 
 **Troubleshooting:**
 
-- The check has no line "Count the tokens (extra credit)": your loop passes no count on yet. Make sure
-  your outline says that every time the loop stops, it passes the count on, and ask Claude to translate
-  it again.
-- That line says `NOT YET`: the count your loop passed on is not what the model's replies used, and its
+- The check has no line "Count the tokens (extra credit)": your loop returns no count yet. Make sure
+  your outline says that every time the loop stops, it returns the count along with the answer, or with
+  no verdict, and ask Claude to translate it again.
+- That line says `NOT YET`: the count your loop returned is not what the model's replies used, and its
   sentence says where. Until it says `ok`, no agent run starts.
+- You wrote your loop's Python yourself: keep the count as `tokens = {"input": 0, "output": 0}`, add
+  each reply's `.usage.input_tokens` and `.usage.output_tokens` to it, and pass `tokens` last in every
+  `talk.accept(...)` and `talk.stop(...)` (or every `finish(...)`, in a loop without the parts).
 - The run stops partway. Run the same command again; it keeps every claim it already finished.
 - The run says its folder has saved results from an earlier version of your agent: you changed
   `instructions.md`, `agent.py`, `wiki.py` or your loop since it started. To start over with the agent
@@ -122,11 +119,8 @@ In this step you say what you learned, in your own words.
 
 **Actions:**
 
-1. Start this step with Claude: paste its prompt from the homework page into the Claude session you
-   have open, or start a new session with its command (type `/exit` first if another session is
-   open in that terminal).
-2. Ask Claude to show you any of your numbers or results.
-3. Type your answers to the three questions in `WRITEUP.md`, in your editor, under 3c.
+1. Ask Claude to show you any of your numbers or results.
+2. Type your answers to the three questions in `WRITEUP.md`, in your editor, under 3c.
 
 **Write-up:** Answer these questions in `WRITEUP.md`, under 3c:
 
@@ -135,9 +129,9 @@ In this step you say what you learned, in your own words.
 - Your numbers rest on 100 claims. Which of your conclusions would you trust on another 100 claims, which might be chance, and what would you measure to find out?
 
 **Hint:** The agent's cost per claim is under "Cost" for `runs/part3/after` in the results viewer, and
-the one-search baseline's is under "Cost" for `runs/part2`. Keep each answer free of blank lines, since
-a blank line ends it. To start a new paragraph,
-put a line with just `>` between the two. Claude will not write or suggest a sentence, because the
+the one-search baseline's is under "Cost" for `runs/part2`. That is the agent with your change; if your
+change made it do more, say so. Keep each answer free of blank lines, since a blank line ends it. To
+start a new paragraph, put a line with just `>` between the two. Claude will not write or suggest a sentence, because the
 write-up is yours. The page does not submit your homework: submit it yourself, as the README's
 Submitting section says.
 

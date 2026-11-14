@@ -116,13 +116,14 @@ TASKS = {
            "verdict is *doesn't say*."],
     "1c": ["Ask Claude to run the agent on your 12 development claims.",
            "In the results viewer, read three traces closely. Pick one claim each that needs 2, 3 and 4 "
-           "Wikipedia articles, where your development claims have one."],
+           "Wikipedia articles."],
     "1d": ["In your editor, write your own instructions in instructions.md. They must say how to break a "
            "claim into pieces, when to use wikidata, when to stop, and when to answer \"doesn't say\".",
            "Ask Claude to run the agent on your 12 development claims again.",
            "In the results viewer, compare the two runs."],
     "1e": ["In a terminal tab of your own, start the full run."],
-    "2a": ["In the terminal tab where you started it, check that the full run has finished.",
+    "2a": ["Check that the full run has finished: the homework page ticks this when it has. If it has not, "
+           "start it again in a terminal tab of your own (see Troubleshooting).",
            "In the results viewer, open the run."],
     "2b": ["In the results viewer, check the quoted evidence for the first five claims where the agent "
            "answered \"supported\" or \"refuted\"."],
@@ -131,7 +132,8 @@ TASKS = {
            "Ask Claude to label the same claims. It gives its labels without seeing yours.",
            "Put Claude's labels in the last column of your table: ask Claude to, or type them in your editor."],
     "3b": ["Make your loop count tokens: add it to your outline and ask Claude to translate it again (or add "
-           "it to Python you wrote yourself), then ask Claude to run the check until its last line says ok.",
+           "it to Python you wrote yourself), then ask Claude to run the check until the line \"Count the "
+           "tokens (extra credit)\" says ok.",
            "Make one change, in your editor or by asking Claude.",
            "In a terminal tab of your own, start the agent's run on your evaluation claims, and let it finish.",
            "In the results viewer, compare the two runs."],
@@ -308,7 +310,10 @@ def test_3b_starts_with_token_counting(a):
                  "often as they ask.",
                  "Counting tokens is a change to the student's outline like any other",
                  "The count is a memory, so the outline must say that the loop remembers it, where it is set "
-                 "and changed, and that every stop passes it on.",
+                 "and changed, and that every stop returns it, with the answer or with no verdict.",
+                 "It is not the last line the check prints.",
+                 "in a session continued from another step with the page's prompt, edits to instructions.md and "
+                 "my_loop.py ask first too.",
                  "translate the outline again by 1a's rules",
                  "no logic, memory or order of your own",
                  "reply.usage.input_tokens and reply.usage.output_tokens",
@@ -321,10 +326,12 @@ def test_3b_starts_with_token_counting(a):
     for must in ("**Words in this step:** A *token* is the unit the Claude API counts text in and charges by",
                  "add it to your outline in `WRITEUP.md`, under 1a: the loop remembers how many tokens the "
                  "model's replies have used, input and output (none yet); each time a reply comes back, it adds "
-                 "that reply's tokens; and every time the loop stops, it passes the count on.",
+                 "that reply's tokens; and every time the loop stops, it returns the count along with the "
+                 "answer, or with no verdict.",
+                 "- You wrote your loop's Python yourself: keep the count as",
                  "and pass `tokens` last in every `talk.accept(...)` and `talk.stop(...)`",
                  "Apart from the token count, leave your outline and your loop as they passed the check",
-                 'Its last line, "Count the tokens (extra credit)", must say `ok`',
+                 'The line "Count the tokens (extra credit)", printed after the six rules, must say `ok`',
                  "It should take about an hour and 20 minutes.",
                  'The agent\'s cost per claim is under "Cost" for `runs/part3/after` in the results viewer, and '
                  'the one-search baseline\'s is under "Cost" for `runs/part2`.'):
@@ -417,8 +424,9 @@ def test_every_task_says_where_it_happens(a):
 
 
 def test_the_page_says_where_answers_go_once_per_step_and_once_at_the_top(a):
-    assert a.answers_task == ("Type your answers to these questions in WRITEUP.md, in your editor. "
-                              "Claude does not write your answers.")
+    # In 1b, 2a and 3a a question asks Claude to paste something into WRITEUP.md (the cold read, Nov 13).
+    assert a.answers_task == ("Type your answers in WRITEUP.md, in your editor. Claude writes there only where a "
+                              "question asks it to paste something.")
     assert a.top_note == ("You talk with Claude to run programs and to ask for explanations. You type your "
                           "answers in `WRITEUP.md`, in your editor.")
     assert "when every task above is ticked" not in a.stop_task, "a task with no tick never gets one"
