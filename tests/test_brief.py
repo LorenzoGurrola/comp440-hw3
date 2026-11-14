@@ -347,6 +347,16 @@ def test_readme_and_writeup_give_the_same_four_learning_goals():
     assert readme_after == writeup_after == EXTRA_CREDIT_GOAL
 
 
+def test_1d_asks_for_rules_that_fit_any_claim():
+    """The flow simulations of Nov 14, run C: the student's own rule named a page from one of their
+    12 development claims, and they saw afterwards that it gave the agent part of that answer."""
+    page = one_line(sections((ROOT / "instructions/part1.md").read_text(encoding="utf-8"))["1d. Write the agent's instructions"])
+    assert ("**Hint:** I recommend short, direct rules. Write rules that fit any claim. A rule that names one "
+            "of your 12 development claims, or a page one of them needs, gives the agent part of that claim's "
+            "answer, and the second run then tells you little about your rules. The model does not give the "
+            "same answer every time") in page
+
+
 def test_the_learning_goals_come_before_part_0_and_hold_no_answer():
     text = WRITEUP.read_text(encoding="utf-8")
     assert text.index("## Learning goals") < text.index("# Part 0")

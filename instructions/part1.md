@@ -265,7 +265,9 @@ It ends with the same two tables as the run in 1c.
   uv run python evaluate.py data/dev.jsonl --methods agent --out runs/part1/after --fresh
   ```
 
-**Hint:** I recommend short, direct rules. The model does not give the same answer every time, so 12
+**Hint:** I recommend short, direct rules. Write rules that fit any claim. A rule that names one of your
+12 development claims, or a page one of them needs, gives the agent part of that claim's answer, and the
+second run then tells you little about your rules. The model does not give the same answer every time, so 12
 claims are too few to prove a change helped: read the traces, not only the score. Claude will not write
 or suggest text for `instructions.md`, because what the agent is told is your decision.
 
