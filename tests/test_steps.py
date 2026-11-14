@@ -600,6 +600,19 @@ def test_no_brief_and_no_tutor_rule_asks_for_a_prediction(a):
             assert "expect" not in c.text.lower() and "expect" not in c.task.lower(), (s.id, c.text)
 
 
+def test_1d_says_what_happens_to_saved_results_when_instructions_change_after_the_run(a):
+    """The flow simulations of Nov 14, run B: after the run, the tutor said "Don't change
+    instructions.md now, because a saved result is never run again", a reason that does not fit the
+    advice. A change after the run is fine; the saved results just do not follow it without --fresh."""
+    brief = flat(a.step("1d").brief)
+    assert ("They must not change instructions.md while a run is going, because the agent reads it again for "
+            "every claim. Once the run has ended they may change it, but the saved results do not update by "
+            "themselves: to see the change, they ask you to run again with `--fresh`, the command above.") in brief
+    assert "uv run python evaluate.py data/dev.jsonl --methods agent --out runs/part1/after --fresh" in brief
+    program = (REPO / "evaluate.py").read_text(encoding="utf-8")      # the option, and what it does
+    assert 'help="forget this folder\'s saved results for these methods and run them again"' in program
+
+
 def test_no_brief_reruns_the_long_runs_with_fresh(a):
     """--fresh is for 1d's and 3b's runs. A line that runs runs/part2 with --fresh would cost the
     full run again."""

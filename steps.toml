@@ -1004,7 +1004,9 @@ the run after) and "Claims that changed", where "Open A and B" puts both traces 
 says "No claim changed. Every claim in both runs has the same verdict in A and B.", they open a claim in runs/part1/before and the
 same claim in runs/part1/after, which also shows lookups that changed where a verdict did not. If it says "A and B used the same version of the agent", the
 change to instructions.md was not in the second run. They must not change instructions.md while a
-run is going, because the agent reads it again for every claim. Then end with what comes next: in
+run is going, because the agent reads it again for every claim. Once the run has ended they may change
+it, but the saved results do not update by themselves: to see the change, they ask you to run again
+with `--fresh`, the command above. Then end with what comes next: in
 the results viewer they compare the two runs, then type their answer to this step's question in
 WRITEUP.md, in their editor. They do not need to reply here.
 
