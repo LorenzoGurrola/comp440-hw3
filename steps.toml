@@ -1100,8 +1100,10 @@ checkpoints = [
   { text = "The report and your answers are in WRITEUP.md", slots = ["2a.*"] },
 ]
 brief = '''
-The full run from 1e should be finished: runs/part2/report.txt exists, and the page ticks the first
-task once it does. Its terminal tab may be closed by now. Check with `ls runs/part2`. If report.txt is missing, the run
+The full run from 1e should be finished by now, and its terminal tab may be closed. Before your first
+reply, check with `ls runs/part2`. Say that the run has finished only when that shows report.txt,
+never from what git showed when this session started; the page ticks the first task once report.txt
+exists. If report.txt is missing, the run
 stopped early or is still going. The student starts the same command again in their own terminal
 tab: it keeps every claim it already finished and checks only the rest.
 

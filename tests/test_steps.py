@@ -575,6 +575,18 @@ def test_brief_commands_run_without_asking(a, step_id):
             assert "Never run that" in s.brief, f"{step_id}: the brief must say Claude never runs {c}"
 
 
+def test_2a_looks_before_saying_the_full_run_has_finished(a):
+    """The flow simulations of Nov 14, runs B and C: both tutors said the full run was finished without
+    running the `ls runs/part2` the brief asked for; one went by what git showed when the session
+    started. The brief now says when to look, and what alone shows the run has finished."""
+    brief = flat(a.step("2a").brief)
+    assert ("Before your first reply, check with `ls runs/part2`. Say that the run has finished only when "
+            "that shows report.txt, never from what git showed when this session started; the page ticks "
+            "the first task once report.txt exists.") in brief
+    assert "should be finished: runs/part2/report.txt exists" not in brief
+    assert a.step("2a").files == ["runs/part2/report.txt"]
+
+
 def test_claim_steps_give_the_claim_word_for_word(a):
     assert a.sample_claim == SAMPLE_CLAIM
     for s in a.steps:
