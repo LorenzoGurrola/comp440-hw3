@@ -210,8 +210,9 @@ claim it already finished.
 "The agent" box to "matches the dataset's label" or "does not match the dataset's label (any reason)".
 "Next →" goes to the next claim in the filtered list. The dataset's labels were made by people from the
 Wikipedia of 2017, so one may look wrong to you; if so, say so in that row. The claim you checked by hand
-in 1b is one of these; you may choose it as your 3-article claim and compare its trace with your own
-lookups.
+in 1b is one of these. You may choose it as your 3-article claim; if you do, read the agent's trace for it
+as you would any other, and compare it with your own lookups: the table asks what the agent did, not what
+you did.
 
 ## 1d. Write the agent's instructions
 

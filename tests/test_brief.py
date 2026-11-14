@@ -274,6 +274,16 @@ def test_1a_says_what_the_page_gives_and_what_is_the_students():
             assert gone not in text, (name, gone)
 
 
+def test_1c_asks_for_the_agents_trace_even_for_the_claim_from_1b():
+    """The flow simulations of Nov 14, run B: the student filled the 3-article row from memory of
+    1b and never opened that claim's trace, as the Hint seemed to allow."""
+    page = one_line(sections((ROOT / "instructions/part1.md").read_text(encoding="utf-8"))["1c. Watch the agent work"])
+    assert ("The claim you checked by hand in 1b is one of these. You may choose it as your 3-article claim; "
+            "if you do, read the agent's trace for it as you would any other, and compare it with your own "
+            "lookups: the table asks what the agent did, not what you did.") in page
+    assert "you may choose it as your 3-article claim and compare its trace" not in page
+
+
 def test_nothing_still_says_the_student_reads_the_loop():
     for name in OWNED:
         text = (ROOT / name).read_text(encoding="utf-8")
