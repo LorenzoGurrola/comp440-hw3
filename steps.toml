@@ -1108,7 +1108,13 @@ reply, check with `ls runs/part2`. Say that the run has finished only when that 
 never from what git showed when this session started; the page ticks the first task once report.txt
 exists. If report.txt is missing, the run
 stopped early or is still going. The student starts the same command again in their own terminal
-tab: it keeps every claim it already finished and checks only the rest.
+tab only once it has stopped: a second copy started while the first is still going would write
+into the same folder. To find out which it is before anything is started again, ask the student
+what the run's terminal tab shows. If it is still printing progress, such as "agent: 40 of 100
+done, 6 min so far", with no prompt after the last line, the run is still going: they wait in that
+tab for its two tables. If that tab is closed, or the run in it has stopped, the same command
+carries on from where it stopped, because the saved results are kept: it checks only the claims
+still to do.
 
     uv run python evaluate.py data/eval.jsonl --out runs/part2
 

@@ -667,6 +667,25 @@ def test_no_brief_reruns_the_long_runs_with_fresh(a):
                 assert "runs/part2" not in c and "after-eval" not in c, f"{s.id}: {c}"
 
 
+def test_2a_finds_out_whether_the_run_is_still_going_before_it_is_started_again(a):
+    """Found while preparing the flow fixes of Nov 14: when report.txt was missing, the brief had the
+    student start the same command again, which starts a second copy of a run that is still going,
+    writing into the same folder. The tutor now has the student look at the run's terminal tab first.
+    That a run started again carries on from where it stopped is tested in test_evaluate.py."""
+    brief = flat(a.step("2a").brief)
+    assert ("The student starts the same command again in their own terminal tab only once it has stopped: "
+            "a second copy started while the first is still going would write into the same folder.") in brief
+    assert ("To find out which it is before anything is started again, ask the student what the run's "
+            "terminal tab shows. If it is still printing progress, such as \"agent: 40 of 100 done, 6 min so "
+            "far\", with no prompt after the last line, the run is still going: they wait in that tab for its "
+            "two tables. If that tab is closed, or the run in it has stopped, the same command carries on from "
+            "where it stopped, because the saved results are kept: it checks only the claims still to do.") in brief
+    assert "terminal tab: it keeps every claim it already finished" not in brief
+    program = (REPO / "evaluate.py").read_text(encoding="utf-8")  # the progress line the brief quotes
+    assert 'print(f"{method}: {n} of {len(todo)} done, "' in program
+    assert 'f"{(time.time() - start) / 60:.0f} min so far"' in program
+
+
 def test_long_runs_are_shown_as_run_yourself():
     """The long runs, 1e's on the student's 100 evaluation claims and 3b's after their change,
     are the student's own, shown on the page as a second command box."""

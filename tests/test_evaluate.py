@@ -73,6 +73,31 @@ def test_a_finished_run_saves_its_report(monkeypatch, tmp_path, capsys):
     assert (out_dir / "report.txt").read_text() == report
 
 
+def test_a_run_started_again_carries_on_from_where_it_stopped(monkeypatch, tmp_path, capsys):
+    """2a's brief says a run that stopped, started again with the same command, carries on from where
+    it stopped: the saved results are kept and only the claims still to do are run."""
+    monkeypatch.setattr(evaluate, "agent_version", lambda: "v1")
+    monkeypatch.setitem(evaluate.METHODS, "agent", always_supported)
+    out_dir = tmp_path / "run"
+    out_dir.mkdir()
+    evaluate.run_method("agent", ITEMS[:7], out_dir, workers=2)  # the run stopped after 7 claims
+    assert not (out_dir / "report.txt").exists()
+    capsys.readouterr()
+
+    ran = []
+
+    def the_rest(claim):
+        ran.append(claim)
+        return always_supported(claim)
+
+    monkeypatch.setitem(evaluate.METHODS, "agent", the_rest)
+    run_main(monkeypatch, tmp_path)
+    assert "agent: 7 already done, running 5" in capsys.readouterr().out
+    assert sorted(ran) == sorted(item["claim"] for item in ITEMS[7:])
+    assert len((out_dir / "agent.jsonl").read_text().splitlines()) == 12
+    assert (out_dir / "report.txt").exists()
+
+
 def test_saved_results_from_an_earlier_agent_are_pointed_out(monkeypatch, tmp_path, capsys):
     monkeypatch.setitem(evaluate.METHODS, "agent", always_supported)
     monkeypatch.setattr(evaluate, "agent_version", lambda: "v1")
