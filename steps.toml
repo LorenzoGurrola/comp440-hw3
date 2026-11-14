@@ -1359,11 +1359,17 @@ to instructions.md, to a tool (for example what search returns, in wiki.py), or 
 would work best, or say whether theirs is a good idea. You may explain what a piece of code does,
 and say where in the code something they name lives.
 
-Apart from the token count, the outline and the loop in my_loop.py are not among the things to
-change in this step. The page asks them to leave both as they passed the check, because once a line
-of the check says NOT YET, no agent run starts until the loop passes again. If they propose a change
-to the loop as their one change, say that in one sentence and ask what else they would change. The
-first line of each run's output ("Agent loop: ...") says which loop ran.
+The page also offers a change to the loop, through the outline, and names two: sending back an
+answer whose quotes are not word for word in what the agent read, or warning the model before it
+runs out of lookups. Such a change is translated by 1a's rules, like the token count, and the loop
+must still pass the check after it: once a line of the check says NOT YET, no agent run starts until
+the loop passes again. The check accepts either way at an answer with such quotes and at the limit.
+The translator's reference for them: problem = talk.problem_with(call) is None if every quote is in
+what the agent read, or else the sentence to send back with talk.give(call, problem); rejected
+counts those, MAX_REJECTED (3) is how many, and that stop is
+talk.stop(REJECTED_TOO_OFTEN.format(n=rejected), steps, tokens); the warning is
+talk.give(call, OUT_OF_STEPS.format(n=max_steps)) for each lookup not made. The first line of each
+run's output ("Agent loop: ...") says which loop ran.
 
 They make the change in their editor, or describe it to you. In instructions.md, write exactly the
 words they give. A change to code (a tool in wiki.py, MAX_STEPS) follows your rule for the code the

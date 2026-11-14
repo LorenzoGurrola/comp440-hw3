@@ -113,9 +113,11 @@ give the same answer every time, so a difference of a few claims between the two
   `uv run python evaluate.py data/eval.jsonl --methods agent --out runs/part3/after --fresh`.
 
 **Hint:** The change can be to `instructions.md`, to a tool (for example, what `search` returns, in
-`wiki.py`), or to the limit of 12 lookups (in `agent.py`). Apart from the token count, leave your outline
-and your loop as they passed the check: once a line of the check says `NOT YET`, no agent run starts
-until your loop passes again. Claude will not propose a change, because the choice is yours.
+`wiki.py`), or to the limit of 12 lookups (in `agent.py`). It can also be to your loop, through your
+outline: for example, send back an answer whose quotes are not word for word in what the agent read
+(`talk.problem_with` in `loop_parts.py` checks them), or warn the model before it runs out of lookups.
+Your loop must still pass the check after any change: once a line of the check says `NOT YET`, no agent
+run starts until your loop passes again. Claude will not propose a change, because the choice is yours.
 
 ## 3c. Write it up
 

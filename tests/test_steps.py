@@ -307,6 +307,25 @@ def test_parts_0_to_2_say_nothing_about_tokens(a):
         flat(a.step("1a").brief)
 
 
+def test_3b_offers_a_change_to_the_loop(a):
+    """Nov 14: the plainest loop leaves out what the six rules asked for. 3b's Hint offers two of them
+    as changes (the third, the reminder, the parts already make), and the brief lets Claude translate
+    such a change, by 1a's rules, without proposing it."""
+    page = flat((REPO / "instructions" / "part3.md").read_text(encoding="utf-8"))
+    assert ("It can also be to your loop, through your outline: for example, send back an answer whose quotes "
+            "are not word for word in what the agent read (`talk.problem_with` in `loop_parts.py` checks them), "
+            "or warn the model before it runs out of lookups.") in page
+    assert "Apart from the token count, leave your outline and your loop" not in page
+    brief = flat(a.step("3b").brief)
+    for must in ("The page also offers a change to the loop, through the outline",
+                 "Such a change is translated by 1a's rules",
+                 "talk.stop(REJECTED_TOO_OFTEN.format(n=rejected), steps, tokens)",
+                 "talk.give(call, OUT_OF_STEPS.format(n=max_steps))",
+                 "never propose a change"):
+        assert must in brief, must
+    assert "If they propose a change to the loop as their one change" not in brief
+
+
 def test_3b_starts_with_token_counting(a):
     s = a.step("3b")
     brief = flat(s.brief)
@@ -335,7 +354,7 @@ def test_3b_starts_with_token_counting(a):
                  "answer, or with no verdict.",
                  "- You wrote your loop's Python yourself: keep the count as",
                  "and pass `tokens` last in every `talk.accept(...)` and `talk.stop(...)`",
-                 "Apart from the token count, leave your outline and your loop as they passed the check",
+                 "Your loop must still pass the check after any change",
                  'The line "Count the tokens (extra credit)", printed after the five rules, must say `ok`',
                  "It should take about 2 hours.",
                  'The agent\'s cost per claim is under "Cost" for `runs/part3/after` in the results viewer, and '
