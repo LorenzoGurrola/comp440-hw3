@@ -1552,7 +1552,7 @@ def test_the_fingerprint_covers_the_loop_in_use(monkeypatch, tmp_path, saved):
     # A copy of the files the fingerprint reads, so the test can change them.
     for name in evaluate.AGENT_FILES + ["my_loop.py", "reference_loop.py"]:
         shutil.copy(ROOT / name, tmp_path / name)
-    monkeypatch.setattr(evaluate, "__file__", str(tmp_path / "evaluate.py"))
+    monkeypatch.setattr(evaluate, "HERE", tmp_path)
     on_reference = evaluate.agent_version()
     (tmp_path / "my_loop.py").write_text("# changed\n")
     assert evaluate.agent_version() == on_reference     # my_loop.py is not in use yet
