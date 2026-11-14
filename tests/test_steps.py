@@ -124,7 +124,8 @@ TASKS = {
            "In the results viewer, compare the two runs."],
     "1e": ["In a terminal tab of your own, start the full run."],
     "2a": ["Check that the full run has finished: the homework page ticks this when it has. If it has not, "
-           "start it again in a terminal tab of your own (see Troubleshooting).",
+           "look at the run's terminal tab. If the run is still going, wait there for its two tables; if it "
+           "has stopped, start it again in a terminal tab of your own (see Troubleshooting).",
            "In the results viewer, open the run."],
     "2b": ["In the results viewer, check the quoted evidence for the first five claims where the agent "
            "answered \"supported\" or \"refuted\"."],
@@ -411,6 +412,18 @@ def test_one_summary_per_step_and_no_goal():
 def test_the_tasks_are_the_outlines(a):
     tasks = {s.id: [c.task for c in stepmod.checkpoints(s) if c.task] for s in a.steps}
     assert tasks == TASKS
+
+
+def test_2a_first_task_waits_for_a_run_that_is_still_going(a):
+    """Found while preparing the flow fixes of Nov 14: 2a's first task said "If it has not, start it
+    again", which also covers a run that is still going, and a second copy would write into the same
+    folder. The task now says to look at the run's terminal tab first, and Actions 1 on the page says
+    the same words."""
+    task = stepmod.checkpoints(a.step("2a"))[0].task
+    assert task == TASKS["2a"][0]
+    assert "If the run is still going, wait there for its two tables; if it has stopped, start it again" in task
+    page = flat((REPO / "instructions" / "part2.md").read_text(encoding="utf-8"))
+    assert f"1. {task}" in page
 
 
 def test_tasks_only_the_student_can_see_done_have_no_tick(a):

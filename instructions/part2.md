@@ -19,7 +19,8 @@ or 4).
 **Actions:**
 
 1. Check that the full run has finished: the homework page ticks this when it has. If it has not,
-   start it again in a terminal tab of your own (see Troubleshooting).
+   look at the run's terminal tab. If the run is still going, wait there for its two tables; if it has
+   stopped, start it again in a terminal tab of your own (see Troubleshooting).
 2. Open **Results** at the top of the homework page, then "runs/part2", and read "Accuracy".
 3. Ask Claude to paste the report into the empty block under 2a in `WRITEUP.md`.
 4. Type your answers to the three questions in `WRITEUP.md`, in your editor, under 2a.

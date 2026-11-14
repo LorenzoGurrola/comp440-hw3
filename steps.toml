@@ -1098,7 +1098,7 @@ files = ["runs/part2/report.txt"]
 allow = ["Bash(uv run python evaluate.py:*)"]
 summary = "In this step you find out how often each of the three versions matched the dataset's label on your 100 evaluation claims. You compare those numbers with your predictions from 1e."
 checkpoints = [
-  { text = "The full run is finished", task = "Check that the full run has finished: the homework page ticks this when it has. If it has not, start it again in a terminal tab of your own (see Troubleshooting).", files = ["runs/part2/report.txt"] },
+  { text = "The full run is finished", task = "Check that the full run has finished: the homework page ticks this when it has. If it has not, look at the run's terminal tab. If the run is still going, wait there for its two tables; if it has stopped, start it again in a terminal tab of your own (see Troubleshooting).", files = ["runs/part2/report.txt"] },
   { text = "You have opened the run in the results viewer", task = "In the results viewer, open the run.", tick = false },
   { text = "The report and your answers are in WRITEUP.md", slots = ["2a.*"] },
 ]
