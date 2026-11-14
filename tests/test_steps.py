@@ -43,7 +43,7 @@ EXPECTED = {
     "0b": (0, "0b. Ask the model to assess a claim without tools", ["runs/part0/no-tools-*.json"], CHECK, 10),
     "0c": (0, "0c. Give it one search", ["runs/part0/one-search-*.json"], CHECK, 15),
     "0d": (0, "0d. Run the agent and read its trace", ["runs/part0/agent-*.json"], CHECK, 15),
-    "1a": (1, "1a. Design the loop", ["runs/part1/loop-check.txt"], LOOP_CHECK + ["Edit(my_loop.py)"], 70),
+    "1a": (1, "1a. Design the loop", ["runs/part1/loop-check.txt"], LOOP_CHECK + ["Edit(my_loop.py)"], 45),
     "1b": (1, "1b. Be the agent", ["runs/part1/lookups.jsonl"], LOOKUP, 35),
     "1c": (1, "1c. Watch the agent work", ["runs/part1/before/report.txt"], EVALUATE + CHECK, 25),
     "1d": (1, "1d. Write the agent's instructions", ["runs/part1/after/report.txt"], EVALUATE + CHECK, 45),
@@ -61,7 +61,7 @@ EXPECTED = {
 # 305 minutes, about 5 hours.
 # Step 3b went from 18 to 28 minutes for its first task, token counting (Nov 11).
 # After the read of steps 1b to 3c (Nov 13): 1b 25 -> 35, 3a 32 -> 45, 3b 28 -> 45, 3c 20 -> 30.
-PART_MINUTES = {0: 60, 1: 195, 2: 60, 3: 120}
+PART_MINUTES = {0: 60, 1: 170, 2: 60, 3: 120}
 
 # Each step's summary, word for word from the instructor's outline (Nov 11).
 SUMMARIES = {
@@ -280,7 +280,9 @@ def test_fourteen_steps_in_order(a):
 def test_minutes_per_part(a):
     per = {n: sum(s.minutes for s in a.steps if s.part == n) for n in PARTS}
     assert per == PART_MINUTES
-    assert sum(per[n] for n in (0, 1, 2)) == 315, "the required work is a little over 5 hours"
+    # 1a went from 70 to 45 minutes on Nov 14, when it came to ask for the plainest loop.
+    assert sum(per[n] for n in (0, 1, 2)) == 290, "the required work is about 5 hours"
+    assert a.step("1a").minutes == 45
 
 
 # The instructor, Nov 11, on counting tokens: "have it gone entirely. for the extra credit we can
