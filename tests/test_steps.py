@@ -976,8 +976,10 @@ def test_1a_brief_gives_the_five_rules_and_what_the_parts_do(a):
         assert f"{n}. {title}." in brief, title
     assert "6. " not in brief
     for must in ("the one limit (12 lookups), with nothing about what the loop does at it",
-                 "The limit is looked at once a reply, before its lookups are made",
-                 "one reply can take the count past the limit",
+                 "the model is asked once more, so that it can answer from what the lookups found",
+                 "What the loop does with a reply that asks for more lookups than are left is the "
+                 "student's choice",
+                 "The check accepts each of these, so never steer the student from one to another.",
                  "If a reply asks for nothing, talk.ask() reminds the model to answer and asks once more.",
                  "you never suggest any of these",
                  '"The answer it gave" is reply.answer, or None if it gave none.',
@@ -986,7 +988,8 @@ def test_1a_brief_gives_the_five_rules_and_what_the_parts_do(a):
                  "Coach the student toward a structure that meets the five rules"):
         assert must in brief, must
     for gone in ("Check the answer.", "Enforce the limit.", "Stop when the model stops.", "the six rules",
-                 "the two limits", "3 failed answers", "what the evidence check is", "the reminder; the refusal"):
+                 "the two limits", "3 failed answers", "what the evidence check is", "the reminder; the refusal",
+                 "The limit is looked at once a reply", "one reply can take the count past the limit"):
         assert gone not in brief, gone
 
 

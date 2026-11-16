@@ -627,10 +627,12 @@ and do not list the rules. You need them to translate and to coach, so here they
 3. Stop with the answer. An answer is not a lookup: it is not made and not counted. When a reply
    gives an answer, the loop stops with that answer, even if the same reply also asks for lookups.
 4. Stop at the limit. Once the loop has made max_steps lookups (12 in a real run; the check passes
-   other numbers), a reply that asks for more ends it with no verdict, and none of them is made. A
-   reply that gives an answer still ends it with that answer. The limit is looked at once a reply,
-   before its lookups are made, so a reply that came below the limit has all its lookups made, and
-   one reply can take the count past the limit.
+   other numbers), the model is asked once more, so that it can answer from what the lookups found:
+   a reply that gives an answer ends the run with that answer. A reply that asks for more lookups
+   instead ends it with no verdict, and none of them is made. What the loop does with a reply that
+   asks for more lookups than are left is the student's choice: make them all, make as many as are
+   left and then stop with no verdict, make none and stop, or give the others a result that says so
+   and ask again. The check accepts each of these, so never steer the student from one to another.
 5. Count the lookups. The loop's count is the number of lookups it made, and the trace has an entry
    for each one (the parts make the entries).
 
