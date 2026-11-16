@@ -6,6 +6,7 @@ student's fork, and saved Claude Code conversations under a temporary CLAUDE_CON
 """
 
 import json
+import os
 import socket
 import time
 import subprocess
@@ -1787,6 +1788,86 @@ def test_after_an_update_the_steps_are_read_again_and_a_code_change_asks_for_a_r
     app.updates.fetch()
     assert app.update() == {"ok": True}
     assert "Restart it: press Ctrl-C" in app.notices["restart"]["text"]
+
+
+def test_nothing_is_saved_or_pushed_while_a_merge_is_half_done(tmp_path, monkeypatch):
+    """Nov 15: a merge the student started by hand stopped on a conflict, and the page's next save
+    concluded it, conflict markers and all, and pushed it. Now the page holds off, says so in one
+    line, and saves again by itself once the merge is undone (or finished)."""
+    monkeypatch.setattr(server, "SETTLE", 0)
+    h = homework(tmp_path)
+    app = server.App(h.student, upstream=str(h.cls))
+    app.updates.setup()
+    finish_part0(h.student)
+    app.commit_finished_parts()
+    assert subjects(h.student)[0] == subjects(h.fork, "main")[0] == "Part 0 done"
+    upstream_commit(h, "WRITEUP.md", WRITEUP.replace("What did it say?\n\n>", "What did it say?\n\n> (write here)"),
+                    "Prompt 0b")
+    app.updates.fetch()
+    merge = subprocess.run(["git", "merge", "--no-commit", "upstream/main"], cwd=h.student, capture_output=True)
+    assert merge.returncode == 1 and "<<<<<<<" in (h.student / "WRITEUP.md").read_text()
+    for _ in range(2):
+        app.tick()
+    assert app.save("Part 0 updated") is False
+    app.push()
+    assert subjects(h.student)[0] == subjects(h.fork, "main")[0] == "Part 0 done"     # nothing committed or pushed
+    assert (h.student / ".git/MERGE_HEAD").exists()                                   # the merge is still the student's
+    notice = next(x for x in app.current_notices() if x["kind"] == "paused")
+    assert notice["text"] == ("Git is in the middle of a merge in this folder, so the page is not saving or pushing "
+                              "your work. It starts again by itself once that is finished or undone.")
+    git(h.student, "merge", "--abort")
+    (h.student / "WRITEUP.md").write_text(FILLED.replace("it guessed", "it guessed, I think"))
+    app.tick()
+    assert not any(x["kind"] == "paused" for x in app.current_notices())
+    assert subjects(h.student)[0] == subjects(h.fork, "main")[0] == "Part 0 updated"
+    assert "<<<<<<<" not in git(h.student, "show", "HEAD:WRITEUP.md")
+
+
+@pytest.mark.parametrize("marker, what", [("MERGE_HEAD", "a merge"), ("rebase-merge/", "a rebase"),
+                                          ("rebase-apply/", "a rebase"), ("CHERRY_PICK_HEAD", "a cherry-pick"),
+                                          ("REVERT_HEAD", "a revert")])
+def test_a_rebase_a_cherry_pick_or_a_revert_holds_off_saving_too(tmp_path, marker, what):
+    h = homework(tmp_path)
+    app = server.App(h.student, upstream=str(h.cls))
+    finish_part0(h.student)
+    where = h.student / ".git" / marker.rstrip("/")
+    if marker.endswith("/"):
+        where.mkdir()
+    else:
+        where.write_text(git(h.student, "rev-parse", "HEAD"))
+    app.tick()
+    assert subjects(h.student) == ["Start"]                                 # Part 0 is done, and not committed
+    assert app.updates.busy() == what
+    assert f"Git is in the middle of {what} in this folder" in app.notices["paused"]["text"]
+    if where.is_dir():
+        where.rmdir()
+    else:
+        where.unlink()
+    app.tick()
+    assert "paused" not in app.notices and subjects(h.student)[0] == "Part 0 done"
+
+
+def test_a_failed_update_does_not_ask_for_a_restart(tmp_path):
+    """A merge that fails is undone with git merge --abort, which puts the page's own files back as they
+    were but with new times. The page compares their bytes before it asks for a restart."""
+    h = homework(tmp_path, {"workbench/note.py": "one\n"})
+    app = server.App(h.student, upstream=str(h.cls))
+    app.updates.setup()
+    (h.seed / "workbench/note.py").write_text("two\n")
+    upstream_commit(h, "WRITEUP.md", WRITEUP.replace("What did it say?\n\n>", "What did it say?\n\n> (write here)"),
+                    "Prompt 0b, and fix the page")
+    app.updates.fetch()
+    (h.student / "WRITEUP.md").write_text(WRITEUP.replace("What did it say?\n\n>", "What did it say?\n\n> Mine."))
+    stamp = app.code_stamp()
+    assert app.update() == {"ok": False}
+    assert (h.student / "workbench/note.py").read_text() == "one\n" and app.code_stamp() != stamp   # new time only
+    kinds = [x["kind"] for x in app.current_notices()]
+    assert "update-failed" in kinds and "restart" not in kinds
+    # A file whose time changes and whose bytes do not is no change; a change to its bytes is one.
+    os.utime(h.student / "workbench/note.py", ns=(1, 1))
+    assert not any(x["kind"] == "restart" for x in app.current_notices())
+    (h.student / "workbench/note.py").write_text("three\n")
+    assert "Restart it: press Ctrl-C" in next(x for x in app.current_notices() if x["kind"] == "restart")["text"]
 
 
 def unpacked(where):
