@@ -84,14 +84,27 @@ def test_claude_md_sends_an_update_by_hand_to_the_class_repositorys_update_md():
     from workbench import claude_md, steps
     a = steps.load(ROOT / "steps.toml")
     text = " ".join(claude_md.text(a).split())
-    for must in ("One thing is done in a session started here and not on the page: updating the homework by hand.",
-                 "do not send them to the page",
+    update = ("If the student asks to update the homework, or says the Update button on the homework page "
+              "failed, do only this.")
+    for must in (update,
                  "Run `git fetch upstream`",
                  f"first run `git remote add upstream {a.upstream}`",
                  "then `git show upstream/main:UPDATE.md`, and follow that file exactly",
-                 "Read it from the class repository every time, because the copy of UPDATE.md in this folder may be old.",
-                 "so the tutor rules below allow them"):
+                 "Do not tell the student to start the homework page: the update needs the page stopped, "
+                 "and the file's last step says when to start it again.",
+                 "Read the file from the class repository every time, because the copy of UPDATE.md in this "
+                 "folder may be old.",
+                 "so the tutor rules below allow them",
+                 "Everything else in this homework is done on the homework page",
+                 "Unless the student asked for an update, tell them so before anything else"):
         assert must in text, must
-    # The exception comes before the tutor rules, and the tutor rules (which page sessions also get) do not carry it.
-    assert text.index("updating the homework by hand") < text.index(" ".join(a.tutor.split())[:80])
+    # The exception is the first thing after the title and the comment, so that nothing sending the student to the
+    # page comes ahead of it; it is stated once; and the tutor rules (which page sessions also get) do not carry it.
+    body = text.split("-->", 1)[1]
+    assert body.lstrip().startswith(update)
+    assert body.index(update) < body.index("homework page, not in a Claude session")
+    assert body.index(update) < body.index("uv run python -m workbench")
+    assert text.count("UPDATE.md") == 2 and text.count("git fetch upstream") == 1
+    assert "One thing is done" not in text
+    assert text.index(update) < text.index(" ".join(a.tutor.split())[:80])
     assert "UPDATE.md" not in a.tutor
