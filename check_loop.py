@@ -29,6 +29,11 @@ A loop may do more than the rules ask: check that an answer's quotes are in
 what the agent read and send back one that fails, or warn the model once
 before it stops at the limit, as loops written before November 14 do. Where
 such a loop and the plainest loop part ways, the made-up checks accept either.
+
+What a loop does with a reply that asks for more lookups than are left is its
+own choice, and the check accepts each way: make them all and ask the model
+again; make as many as are left, or none, and stop with no verdict; or give
+the ones not made a result that says so and ask the model again.
 """
 
 import argparse
@@ -75,9 +80,10 @@ def rule_text(number):
         "An answer is not a lookup: it is not made and not counted. When the model gives an "
         "answer, the agent stops with that answer: its verdict, its evidence and its explanation.",
         f"Once the agent has made as many lookups as its limit ({agent.MAX_STEPS} in a real run), "
-        "it makes no more: if the model asks for more, the agent stops with no verdict. An answer "
-        "still ends the run with that answer. The lookups of a reply that came while the count "
-        "was below the limit are all made, so one reply can take the count past the limit.",
+        "the model is asked once more, so that it can answer from what the lookups found. If it "
+        "asks for more lookups instead, none of them is made, and the agent stops with no "
+        "verdict. What the agent does with a reply that asks for more lookups than are left is "
+        "your choice.",
         "The agent's count of lookups is the number of lookups it made, and its trace has an "
         "entry for each one, with what it found.",
     ][number - 1]
@@ -201,8 +207,10 @@ SCENARIOS = {
                      reply("asked for a fourth search", search("Zemeckis Chicago")),
                      reply("asked for a fifth search", search("Zemeckis Illinois")),
                      reply("asked for a sixth search", search("Zemeckis early life"))], LIMIT),
-    # The limit is crossed inside one reply: one lookup is left, and the reply asks for two. The
-    # plainest loop makes both; a loop that warns makes one and warns about the other.
+    # One lookup is left, and one reply asks for two. What the loop does with that reply is its own
+    # choice: it may stop there with no verdict, having made one or neither, or give each call a
+    # result and ask the model again, which then answers. The plainest loop makes both and asks
+    # again; a loop that warns makes one, warns about the other and asks again.
     "limit_cross": ([reply("asked for a search", search("Forrest Gump")),
                      reply("asked for a search and a read in one reply", search("Robert Zemeckis"),
                            read("Robert Zemeckis")),
@@ -495,8 +503,10 @@ class Run:
                          "rather than with an answer or with no verdict")
         return self.result
 
-    def expect(self, k, result, verdict, evidence, explanation, name=None, after=""):
-        """The verdict, evidence and explanation the result should hold after the kth reply."""
+    def expect(self, k, result, verdict, evidence, explanation, name=None, after="",
+               where="this case ends with"):
+        """The verdict, evidence and explanation the result should hold after the kth reply.
+        `where` names what should hold them, in the sentence for one that does not."""
         def shown(field, value):
             if field == "verdict" and value is None:
                 return "no verdict"
@@ -505,7 +515,7 @@ class Run:
                             ("explanation", explanation)):
             if result[field] != want:
                 raise NotYet(self, f"{self.said(k)}{after}, and your loop stopped with "
-                             f"{shown(field, result[field])}, where this case ends with "
+                             f"{shown(field, result[field])}, where {where} "
                              f"{shown(field, want)}")
 
 
@@ -851,9 +861,14 @@ def made_up_to_the_limit(run, m):
 
 def rule_4(runs):
     """Stop at the limit. Each sentence gives the numbers that tell what the loop did: how many
-    lookups it had made (as the made-up Wikipedia saw them) and max_steps. A loop that warns the
-    model once before it stops (sending back something other than the lookup's result) passes
-    too."""
+    lookups it had made (as the made-up Wikipedia saw them) and max_steps. Two things are required.
+    A reply that asks for one lookup below the limit has it made, and after the lookup that reaches
+    the limit the model is asked once more: an answer then ends the run with that answer, and a
+    reply that asks for more lookups has none of them made and ends it with no verdict. A loop that
+    warns the model once before it stops (sending back something other than the lookup's result)
+    passes too. What the loop does with a reply that asks for more lookups than are left is free:
+    it may stop there with no verdict, having made no more than the limit allows, or give each
+    call a result and ask the model again, and then stop with the answer that follows."""
     run = runs["limit_answer"]
     m = run.max_steps
     made_up_to_the_limit(run, m)
@@ -883,21 +898,25 @@ def rule_4(runs):
     result = run.returned_after(last, "asked the model again instead of stopping", after)
     run.expect(last, result, None, [], agent.RAN_OUT, after=after)
 
+    # A reply that asks for more lookups than are left: the loop may make all of them, some or
+    # none. If it asks the model again, it stops with the answer that follows; if it does not, it
+    # stops there with no verdict, having made no more lookups than the limit.
     run = runs["limit_cross"]
     m = run.max_steps
     run.made_for(1)
-    said = (f"{run.said(2)}, when your loop had made {ran(run, 2)} and the limit is {m}, so one "
-            "more lookup was allowed, and")
+    if len(run.requests) > 2:
+        result = run.returned_after(3, "asked the model again instead of stopping")
+        run.expect(3, result, "doesn't say", [], NOT_SAID_WHY)
+        return
+    after = f", when your loop had made {ran(run, 2)} and the limit is {m}"
+    result = run.returned_after(2, "asked the model again instead of stopping", after)
     made = made_after(run, 2)
-    if not made:
-        if len(run.requests) == 2 and run.ended == "returned":
-            raise NotYet(run, f"{said} your loop {run.returned()} instead of making them")
-        raise NotYet(run, f"{said} your loop made neither")
-    if len(run.requests) == 2 and run.ended == "returned":
-        raise NotYet(run, f"{said} your loop made {count(len(made))} of them and "
-                     f"{run.returned()} instead of asking the model again")
-    result = run.returned_after(3, "asked the model again instead of stopping")
-    run.expect(3, result, "doesn't say", [], NOT_SAID_WHY)
+    if sum(name in LOOKUPS for name, _ in run.lookups) > m:
+        both = "both" if len(made) == len(run.calls(2)) else count(len(made), "lookup")
+        raise NotYet(run, f"{run.said(2)}{after}, and your loop made {both} and then "
+                     f"{run.returned()} without asking the model again, so the model could not "
+                     "answer from what they found")
+    run.expect(2, result, None, [], agent.RAN_OUT, after=after, where="a stop at the limit has")
 
 
 def trace_problem(run, trace, asked, the_trace, when=""):

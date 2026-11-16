@@ -175,9 +175,10 @@ def test_an_answer_at_the_limit_ends_the_check_with_that_answer():
     assert result["steps"] == 2
 
 
-def test_one_reply_can_take_the_count_past_the_limit():
-    """The limit is looked at once a reply, before its lookups: every lookup of a reply that came
-    below the limit is made."""
+def test_one_reply_can_take_the_reference_loops_count_past_the_limit():
+    """The reference loop looks at the limit once a reply, before its lookups: every lookup of a
+    reply that came below the limit is made. (That is one of the ways the check accepts; rule 4
+    leaves a reply that asks for more lookups than are left to the loop.)"""
     result, claude = bare([
         reply(tool_use("search", {"query": "q0"}, 0)),
         reply(tool_use("read", {"title": "Forrest Gump"}, 1), tool_use("read", {"title": "Robert Zemeckis"}, 2),

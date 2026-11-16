@@ -9,7 +9,11 @@ a runs/ folder in the repository.
 Since November 14 the check asks for the plainest loop (five rules), and the
 reference loop is that loop. Loops written for the six rules before then, which
 check quotes, warn the model at the limit and remind it, must still pass and
-still run as they did: the raw loop below and the full loop are kept for that."""
+still run as they did: the raw loop below and the full loop are kept for that.
+
+Since November 16 rule 4 leaves a reply that asks for more lookups than are
+left to the loop: it may stop there or ask the model again (the section "where
+the loop looks at the limit" below)."""
 
 import json
 import re
@@ -799,6 +803,9 @@ PASSING = {
                                                        "            return finish(claim, None, [], RAN_OUT, trace, steps)\n"
                                                        "        results = []\n        warned_before = warned\n")),
     "a-warning-then-a-stop-in-the-same-reply": broken(("                if warned_before:\n", "                if warned:\n")),
+    # Nov 16: it stops in the middle of the reply that asks for more lookups than are left, having
+    # made as many as were left. Rule 4 leaves that reply to the loop.
+    "a-stop-in-the-middle-of-a-reply": broken(("if warned_before:", "if True:")),
     "the-full-loop-checking-the-limit-once-per-reply": full(
         ("        warned_before = warned\n", "        warned_before = warned\n        over = steps >= max_steps\n"),
         ("            elif steps >= max_steps:", "            elif over:")),
@@ -1103,11 +1110,6 @@ BROKEN = {
                                   "loop had sent back a result for the third search without making "
                                   "it, and your loop asked the model again instead of stopping: it "
                                   "had made 2 lookups, the limit"]),
-    "stops in the middle of a reply": (4, [("if warned_before:", "if True:")],
-                                       ["the model's second reply asked for a search and a read in "
-                                        "one reply, when your loop had made 1 lookup and the limit "
-                                        "is 2, so one more lookup was allowed, and your loop made one "
-                                        "of them and stopped instead of asking the model again"]),
     "lookup not in the trace": (5, [('            trace.append({"tool": call.name, "input": '
                                      'call.input, "result": result})\n', "")],
                                 ["the model's first reply asked for a search, and the trace "
@@ -1169,15 +1171,6 @@ KIT_WRONG = {
         "the model's third reply gave an answer of doesn't say, when your loop had made 2 lookups, "
         "the limit, and your loop stopped with no verdict, where this case ends with the verdict "
         "\"doesn't say\"."),
-    "the limit looked at for each lookup": (4, [(LIMIT + LOOKUPS, """        for call in reply.lookups:
-            if steps >= max_steps:
-                return talk.stop(RAN_OUT, steps)
-            talk.give(call, talk.run(call))
-            steps += 1
-""")],
-        "the model's second reply asked for a search and a read in one reply, when your loop had "
-        "made 1 lookup and the limit is 2, so one more lookup was allowed, and your loop made one "
-        "of them and stopped instead of asking the model again."),
     "no limit": (4, [(LIMIT, "")],
         "the model's third reply asked for a third search with the limit of 2 lookups reached, and "
         "your loop made it: it had made 2 lookups before that one."),
@@ -1207,6 +1200,286 @@ def test_a_wrong_loop_with_the_parts_gets_a_sentence_about_what_it_did(tmp_path,
     first = next(i for i, line in enumerate(printed, 1) if line.startswith("NOT YET"))
     assert first == rule, printed
     assert printed[rule - 1] == f"NOT YET    {rule}. {check_loop.RULES[rule - 1]}: {sentence}"
+
+
+# ---------- where the loop looks at the limit ----------
+
+# The instructor, Nov 16: "the details about whether the model should short-circuit before or after
+# an iteration, etc. seem arbitrary. I want to be flexible about that choice. on the other hand, a
+# model that has made the maximum number of calls should still be able to interpret them in the next
+# turn." Rule 4 asks for two things: after the lookup that reaches the limit the model is asked once
+# more, and a reply that then asks for more lookups has none of them made and ends the run with no
+# verdict. What a loop does with a reply that asks for more lookups than are left (the made-up check
+# limit_cross) is its own choice. Each loop below is the plainest loop with the parts, with another
+# loop body.
+
+def kit_body(body, *names):
+    """The reference loop with body in place of its loop, importing more names from agent.py."""
+    head = KIT_REFERENCE[:KIT_REFERENCE.index("    while True:")]
+    if names:
+        head = edited(head, ("RAN_OUT, run_tool", f"{', '.join(names)}, RAN_OUT, run_tool"))
+    return head + body
+
+
+LIMIT_PER_LOOKUP = kit_body('''    while True:
+        reply = talk.ask()
+        if reply.answer:
+            return talk.accept(reply.answer, steps)
+        for call in reply.lookups:
+            if steps >= max_steps:
+                return talk.stop(RAN_OUT, steps)
+            talk.give(call, talk.run(call))
+            steps += 1
+        talk.send_results()
+''')
+HARD_CAP = kit((LIMIT, """        if steps + len(reply.lookups) > max_steps:
+            return talk.stop(RAN_OUT, steps)
+"""))
+HARD_CAP_TOLD = kit_body('''    told = False        # has the model been told its lookups were not made?
+    while True:
+        reply = talk.ask()
+        if reply.answer:
+            return talk.accept(reply.answer, steps)
+        if steps + len(reply.lookups) > max_steps:
+            if told:
+                return talk.stop(RAN_OUT, steps)
+            for call in reply.lookups:
+                talk.give(call, OUT_OF_STEPS.format(n=max_steps))
+            told = True
+        else:
+            for call in reply.lookups:
+                talk.give(call, talk.run(call))
+                steps += 1
+        talk.send_results()
+''', "OUT_OF_STEPS")
+# The outline the instructor wrote on Nov 16, with the limit looked at before each lookup.
+INSTRUCTOR_OUTLINE = kit_body('''    while True:
+        reply = talk.ask()
+        for call in reply.calls:
+            if call.is_answer:
+                return talk.accept(call, steps)
+            elif call.is_lookup:
+                if steps >= max_steps:
+                    return talk.stop(RAN_OUT, steps)
+                talk.give(call, talk.run(call))
+                steps += 1
+        talk.send_results()
+''')
+
+# What each way does with the second reply of limit_cross (limit 2, one lookup made, a search and
+# a read asked for): the requests it sent the model, the lookups it made for that reply, and the
+# verdict and explanation it stopped with.
+CROSSING = {
+    "(a) makes both and asks again": (KIT_REFERENCE, 3, 2, "doesn't say", check_loop.NOT_SAID_WHY),
+    "(b) makes one, warns about the other and asks again": (FULL_LOOP, 3, 1, "doesn't say",
+                                                            check_loop.NOT_SAID_WHY),
+    "(c) makes as many as are left and stops": (LIMIT_PER_LOOKUP, 2, 1, None, agent.RAN_OUT),
+    "(d) makes none and stops": (HARD_CAP, 2, 0, None, agent.RAN_OUT),
+    "(e) makes none, warns about each and asks again": (HARD_CAP_TOLD, 3, 0, "doesn't say",
+                                                        check_loop.NOT_SAID_WHY),
+}
+
+LIMIT_PASSING = {
+    **{name: source for name, (source, *_) in CROSSING.items()},
+    "the instructor's outline": INSTRUCTOR_OUTLINE,
+    "the limit looked at the end of each turn, then one last ask": kit((LIMIT + LOOKUPS, LOOKUPS), (
+        "        talk.send_results()\n", """        talk.send_results()
+        if steps >= max_steps:
+            reply = talk.ask()
+            if reply.answer:
+                return talk.accept(reply.answer, steps)
+            return talk.stop(RAN_OUT, steps)
+""")),
+    "before each lookup, the ones past the limit told so and the model asked again": kit_body('''    told = False
+    while True:
+        reply = talk.ask()
+        if reply.answer:
+            return talk.accept(reply.answer, steps)
+        if steps >= max_steps and told:
+            return talk.stop(RAN_OUT, steps)
+        for call in reply.lookups:
+            if steps >= max_steps:
+                talk.give(call, OUT_OF_STEPS.format(n=max_steps))
+                told = True
+            else:
+                talk.give(call, talk.run(call))
+                steps += 1
+        talk.send_results()
+''', "OUT_OF_STEPS"),
+}
+
+
+def run_on(tmp_path, source, key):
+    """The loop in source, run on one made-up check."""
+    path = str(a_loop(tmp_path, source).resolve())
+    module = check_loop.load(path)
+    with check_loop.offline():
+        return check_loop.Run(key, module.run_agent, path)
+
+
+@pytest.mark.parametrize("name", CROSSING)
+def test_each_way_with_a_reply_that_asks_for_more_than_are_left_does_what_it_says(tmp_path, name):
+    source, asks, made, verdict, explanation = CROSSING[name]
+    run = run_on(tmp_path, source, "limit_cross")
+    assert run.ended == "returned"
+    assert (len(run.requests), len(check_loop.made_after(run, 2))) == (asks, made)
+    assert (run.result["verdict"], run.result["explanation"]) == (verdict, explanation)
+    if asks == 3:       # each call of the second reply had a result, made or not
+        for call in run.calls(2):
+            assert check_loop.sent_back(run.requests[2], call.id) is not check_loop.MISSING
+
+
+@pytest.mark.parametrize("name", LIMIT_PASSING)
+def test_where_the_loop_looks_at_the_limit_is_its_own_choice(tmp_path, name):
+    assert shown(a_loop(tmp_path, LIMIT_PASSING[name])) == FIVE
+
+
+STOPS_AFTER_THE_LAST_LOOKUP = (
+    "the model's second reply asked for a second search, and your loop made it and then stopped "
+    "without asking the model again, though the model had not asked for more than the limit of 2 "
+    "lookups.")
+MAKES_ONE_TOO_MANY = (
+    "the model's third reply asked for a third search with the limit of 2 lookups reached, and your "
+    "loop made it: it had made 2 lookups before that one.")
+STILL_NOT_YET = {
+    "repeats while the count is under the limit": (kit_body('''    while steps < max_steps:
+        reply = talk.ask()
+        if reply.answer:
+            return talk.accept(reply.answer, steps)
+        for call in reply.lookups:
+            talk.give(call, talk.run(call))
+            steps += 1
+        talk.send_results()
+    return talk.stop(RAN_OUT, steps)
+'''), STOPS_AFTER_THE_LAST_LOOKUP),
+    "looks at the limit at the top of each turn, before asking": (kit_body('''    while True:
+        if steps >= max_steps:
+            return talk.stop(RAN_OUT, steps)
+        reply = talk.ask()
+        if reply.answer:
+            return talk.accept(reply.answer, steps)
+        for call in reply.lookups:
+            talk.give(call, talk.run(call))
+            steps += 1
+        talk.send_results()
+'''), STOPS_AFTER_THE_LAST_LOOKUP),
+    "past the limit, looked at before the lookups": (kit(("if steps >= max_steps:", "if steps > max_steps:")),
+                                                     MAKES_ONE_TOO_MANY),
+    "past the limit, looked at after the lookups": (kit((LIMIT + LOOKUPS, LOOKUPS + LIMIT),
+                                                        ("if steps >= max_steps:", "if steps > max_steps:")),
+                                                    MAKES_ONE_TOO_MANY),
+    # A stop in the middle of a reply that asks for more than are left, with the wrong sentence.
+    "stops in the middle of a reply without saying it ran out": (kit((LOOKUPS, """        for call in reply.lookups:
+            if steps >= max_steps:
+                return talk.stop(NO_ANSWER, steps)
+            talk.give(call, talk.run(call))
+            steps += 1
+"""), ("RAN_OUT, run_tool", "NO_ANSWER, RAN_OUT, run_tool")),
+        "the model's second reply asked for a search and a read in one reply, when your loop had made "
+        "1 lookup and the limit is 2, and your loop stopped with the explanation 'The agent stopped "
+        "without answering.', where a stop at the limit has the explanation 'The agent ran out of "
+        "steps.'."),
+    # Both made, which takes the count past the limit, and no ask: the model never sees them.
+    "makes both and stops": (kit((LOOKUPS, LOOKUPS + """        if steps > max_steps:
+            return talk.stop(RAN_OUT, steps)
+""")), "the model's second reply asked for a search and a read in one reply, when your loop had made "
+           "1 lookup and the limit is 2, and your loop made both and then stopped without asking the "
+           "model again, so the model could not answer from what they found."),
+    "stops in the middle of a reply with something that is not a result": (kit((LOOKUPS, """        for call in reply.lookups:
+            if steps >= max_steps:
+                return RAN_OUT
+            talk.give(call, talk.run(call))
+            steps += 1
+""")), "the model's second reply asked for a search and a read in one reply, and your loop ended with "
+           "'The agent ran out of steps.', rather than with an answer or with no verdict."),
+    # Told the lookups were not made, then stopped at the next reply, whatever it was.
+    "asks again and does not stop with the answer": (kit_body('''    told = False
+    while True:
+        reply = talk.ask()
+        if told:
+            return talk.stop(RAN_OUT, steps)
+        if reply.answer:
+            return talk.accept(reply.answer, steps)
+        if steps + len(reply.lookups) > max_steps:
+            for call in reply.lookups:
+                talk.give(call, OUT_OF_STEPS.format(n=max_steps))
+            told = True
+        else:
+            for call in reply.lookups:
+                talk.give(call, talk.run(call))
+                steps += 1
+        talk.send_results()
+''', "OUT_OF_STEPS"), "the model's third reply gave an answer of doesn't say, and your loop stopped with no "
+                     "verdict, where this case ends with the verdict \"doesn't say\"."),
+}
+
+
+@pytest.mark.parametrize("name", STILL_NOT_YET)
+def test_the_two_things_rule_4_asks_for_are_still_required(tmp_path, name):
+    source, sentence = STILL_NOT_YET[name]
+    assert shown(a_loop(tmp_path, source)) == FIVE[:3] + [f"NOT YET    4. Stop at the limit: {sentence}",
+                                                          FIVE[4]]
+
+
+def test_an_error_in_the_middle_of_a_reply_that_asks_for_more_than_are_left_is_not_yet(tmp_path):
+    source = kit((LOOKUPS, """        for call in reply.lookups:
+            if steps >= max_steps:
+                return talk.stop(RAN_OUT)
+            talk.give(call, talk.run(call))
+            steps += 1
+"""))
+    line = 1 + source[:source.index("return talk.stop(RAN_OUT)\n")].count("\n")
+    printed = shown(a_loop(tmp_path, source))
+    assert printed[3] == (
+        "NOT YET    4. Stop at the limit: the model's second reply asked for a search and a read in one "
+        f"reply, and your loop stopped with an error at line {line} of my_loop.py: TypeError: "
+        "Conversation.stop() missing 1 required positional argument: 'steps'.")
+
+
+def test_a_loop_that_hangs_in_the_middle_of_a_reply_that_asks_for_more_than_are_left_is_not_yet(
+        tmp_path, monkeypatch):
+    monkeypatch.setattr(check_loop, "TIME_LIMIT", 0.3)
+    monkeypatch.setattr(check_loop, "AFTER_A_HANG", 0.1)
+    source = kit((LOOKUPS, """        for call in reply.lookups:
+            while steps >= max_steps:
+                pass
+            talk.give(call, talk.run(call))
+            steps += 1
+"""))
+    printed = shown(a_loop(tmp_path, source))
+    assert printed[3].startswith(
+        "NOT YET    4. Stop at the limit: the model's second reply asked for a search and a read in one "
+        "reply, and your loop did not stop: it was still running line "), printed[3]
+
+
+def test_the_instructors_loop_as_translated_counts_a_lookup_it_did_not_make(tmp_path):
+    """His copy's translation counts each lookup before it looks at the limit, so the lookup that
+    would pass the limit is counted and not made. Rule 4 passes it; rule 5 says what the count was."""
+    source = kit_body('''    while True:
+        reply = talk.ask()
+        for call in reply.calls:
+            if call.is_answer:
+                return talk.accept(call, steps)
+            elif call.is_lookup:
+                steps += 1
+                if steps > max_steps:
+                    return talk.stop(RAN_OUT, steps)
+                else:
+                    talk.give(call, talk.run(call))
+        talk.send_results()
+''')
+    assert shown(a_loop(tmp_path, source)) == FIVE[:4] + [
+        "NOT YET    5. Count the lookups: the model's third reply asked for a third search, and when "
+        "your loop stopped its count of lookups was 3, where it had made two lookups."]
+
+
+def test_rule_4_states_the_two_things_and_leaves_the_rest_to_the_student():
+    text = check_loop.rule_text(4)
+    assert "the model is asked once more" in text and "none of them is made" in text
+    assert text.endswith("What the agent does with a reply that asks for more lookups than are left is "
+                         "your choice.")
+    for gone in ("all made", "past the limit", "below the limit", "makes no more"):
+        assert gone not in text, gone
 
 
 # The made-up checks of the six rules that the five no longer have: a reminder, two stalls, a
