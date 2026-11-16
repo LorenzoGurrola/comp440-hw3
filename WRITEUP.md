@@ -58,6 +58,10 @@ Describe Wikidata briefly. Why may it be important to this task?
 
 ## 1a. Design the loop
 
+Your loop should repeatedly call the model with the message history so far, and ask for its next step. It should check whether the model has given an answer yet. If not, it should make the lookups that step asks for, and add what they return to the history. It should also pay attention to whether the loop has reached its limit: a claim that runs out of lookups cannot be decided. One limit is set for you: 12 lookups for a claim.
+
+The Background and an example outline are under 1a on the homework page, and in [instructions/part1.md](instructions/part1.md#1a-design-the-loop).
+
 Write your outline of the loop in the code block: what it remembers, what it repeats, and every way it stops.
 
 ```
