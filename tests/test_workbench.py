@@ -21,7 +21,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from workbench import claude_md, labels, server, steps, transcript  # noqa: E402
+from workbench import claude_md, labels, server, steps, transcript, updates  # noqa: E402
 from workbench.sessions import stamp  # noqa: E402
 
 STEPS = '''
@@ -1845,6 +1845,57 @@ def test_a_rebase_a_cherry_pick_or_a_revert_holds_off_saving_too(tmp_path, marke
         where.unlink()
     app.tick()
     assert "paused" not in app.notices and subjects(h.student)[0] == "Part 0 done"
+
+
+def stash_pop_conflict(h):
+    """A change set aside with git stash, a commit by hand on the same line, then git stash pop."""
+    w = h.student / "WRITEUP.md"
+    w.write_text(FILLED.replace("it guessed", "it guessed, set aside"))
+    git(h.student, "stash", "push", "-q")
+    w.write_text(FILLED.replace("it guessed", "it guessed, by hand"))
+    git(h.student, "commit", "-q", "-am", "By hand")
+    return subprocess.run(["git", "stash", "pop"], cwd=h.student, capture_output=True)
+
+
+def squash_merge_conflict(h):
+    """The class repository's update taken with git merge --squash, over an answer on the same line."""
+    upstream_commit(h, "WRITEUP.md", FILLED.replace("it guessed", "it guessed, from the class"), "Change 0b")
+    git(h.student, "fetch", "-q", "upstream")
+    (h.student / "WRITEUP.md").write_text(FILLED.replace("it guessed", "it guessed, by hand"))
+    git(h.student, "commit", "-q", "-am", "By hand")
+    return subprocess.run(["git", "merge", "--squash", "upstream/main"], cwd=h.student, capture_output=True)
+
+
+@pytest.mark.parametrize("conflict", [stash_pop_conflict, squash_merge_conflict])
+def test_a_conflict_with_no_merge_file_holds_off_saving_too(tmp_path, monkeypatch, conflict):
+    """git stash pop and git merge --squash stop on a conflict without MERGE_HEAD or any other of git's
+    files: only the index says some files are not merged. The page holds off for that too."""
+    monkeypatch.setattr(server, "SETTLE", 0)
+    h = homework(tmp_path)
+    app = server.App(h.student, upstream=str(h.cls))
+    app.updates.setup()
+    finish_part0(h.student)
+    app.commit_finished_parts()
+    assert subjects(h.fork, "main")[0] == "Part 0 done"
+    assert conflict(h).returncode != 0 and "<<<<<<<" in (h.student / "WRITEUP.md").read_text()
+    assert not any((h.student / ".git" / x).exists() for x in updates.BUSY)
+    head = git(h.student, "rev-parse", "HEAD")
+    for _ in range(2):
+        app.tick()
+    assert app.save("Part 0 updated") is False
+    app.push()
+    assert git(h.student, "rev-parse", "HEAD") == head and subjects(h.fork, "main")[0] == "Part 0 done"
+    assert app.updates.busy() == "a merge"
+    assert next(x for x in app.current_notices() if x["kind"] == "paused")["text"].startswith(
+        "Git is in the middle of a merge in this folder, so the page is not saving or pushing your work.")
+    # The student settles the conflict and marks it settled: the page saves and pushes again by itself.
+    (h.student / "WRITEUP.md").write_text(FILLED.replace("it guessed", "it guessed, settled"))
+    git(h.student, "add", "WRITEUP.md")
+    app.tick()
+    assert app.updates.busy() is None and not any(x["kind"] == "paused" for x in app.current_notices())
+    assert subjects(h.student)[0] == subjects(h.fork, "main")[0] == "Part 0 updated"
+    assert "it guessed, settled" in git(h.student, "show", "HEAD:WRITEUP.md")
+    assert "<<<<<<<" not in git(h.student, "show", "HEAD:WRITEUP.md")
 
 
 def test_a_failed_update_does_not_ask_for_a_restart(tmp_path):

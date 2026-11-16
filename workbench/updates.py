@@ -106,7 +106,12 @@ class Updates:
         revert"), or None. Nothing may be committed then: a commit would conclude a merge that
         stopped on a conflict, with its conflict markers."""
         d = self.git_dir()
-        return next((what for x, what in BUSY.items() if (d / x).exists()), None)
+        what = next((what for x, what in BUSY.items() if (d / x).exists()), None)
+        # `git stash pop` and `git merge --squash` that stop on a conflict leave none of those files,
+        # only files the index lists as not yet merged. `git add -A` would mark them merged, markers and all.
+        if what is None and self.git("ls-files", "--unmerged", timeout=10).stdout.strip():
+            what = "a merge"
+        return what
 
     def apply(self, save: Callable[[], bool]) -> dict:
         """Merge the class repository's new commits. `save` commits the student's changes first
