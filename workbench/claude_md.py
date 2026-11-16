@@ -5,7 +5,8 @@
 A session the page starts leaves this file out (its command has `--setting-sources user`), so it
 reaches only a Claude started in this folder some other way. It sends the student to the homework
 page, helps if the page won't start, and gives the homework's tutor rules from steps.toml for a
-student who keeps working there anyway. tests/test_workbench.py fails when this file and
+student who keeps working there anyway. The one thing it does there instead of on the page is an
+update by hand: it reads UPDATE.md from the class repository and follows it. tests/test_workbench.py fails when this file and
 steps.toml are out of step: run this again after changing the tutor text.
 """
 
@@ -19,6 +20,7 @@ REPO = Path(__file__).resolve().parent.parent
 
 
 def text(a: Assignment) -> str:
+    url = a.upstream or "the class repository's address"
     return f"""# {a.title}
 
 <!-- Written by `uv run python -m workbench.claude_md` from steps.toml. Change steps.toml, then
@@ -33,6 +35,16 @@ terminal open while they work:
 It opens the homework page in the browser. The page starts each Claude session for the homework:
 the command a step shows, pasted into another terminal in this folder, starts a new one, and the
 prompt a step shows, pasted into that session's chat, moves it on to that step.
+
+One thing is done in a session started here and not on the page: updating the homework by hand.
+If the student asks to update the homework, or says the page's Update button failed, do not send
+them to the page. Run `git fetch upstream` (if there is no remote named upstream, first run
+`git remote add upstream {url}`),
+then `git show upstream/main:UPDATE.md`, and follow that file exactly: it is the instructor's
+current procedure for bringing the class repository's updates into this copy without losing the
+student's work. Read it from the class repository every time, because the copy of UPDATE.md in this
+folder may be old. Its steps move the student's answers and never write one, so the tutor rules
+below allow them.
 
 If the page won't start, help them get it running, and nothing else until it does:
 - It must be started in this folder, the one with steps.toml.

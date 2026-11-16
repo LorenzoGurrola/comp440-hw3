@@ -1736,9 +1736,17 @@ def test_a_true_conflict_changes_nothing_and_says_so(tmp_path):
     assert not (h.student / ".git/MERGE_HEAD").exists()
     assert git(h.student, "status", "--porcelain") == ""                 # nothing half-merged
     assert subjects(h.student)[0] == "Save work before update"
-    text = app.notices["update-failed"]["text"]
+    failed = app.notices["update-failed"]
+    text = failed["text"]
     assert "could not be applied automatically" in text and "nothing in your files was changed" in text
-    assert "#comp440-f26" in text
+    # How to update by hand (Nov 16): stop the page, run claude here, say "update my homework"; Slack if not.
+    assert text.endswith("You can update by hand, with Claude, in three steps:")
+    assert failed["items"] == server.UPDATE_BY_HAND and len(failed["items"]) == 3
+    assert "Ctrl-C" in failed["items"][0] and "run claude" in failed["items"][1]
+    assert '"update my homework"' in failed["items"][2]
+    assert failed["after"] == "If that does not work, post in #comp440-f26 on Slack."
+    js = (ROOT / "workbench/static/app.js").read_text()
+    assert "x.items ?" in js and "x.after ? `<p>${esc(x.after)}</p>`" in js     # the page shows all three parts
     assert not any(x["kind"] == "update" for x in app.current_notices())   # the button is gone
     upstream_commit(h, "README.md", "# HW9\n\nNewer.\n", "A newer fix")        # until there is more
     app.updates.fetch()

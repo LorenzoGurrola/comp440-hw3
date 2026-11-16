@@ -220,6 +220,7 @@ function notices() {
   return (S.notices || []).map((x) => `<div class="notice ${esc(x.kind)}"><p>${esc(x.text)}</p>`
     + (x.items ? `<ul>${x.items.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : "")
     + (x.code ? `<pre><code>${esc(x.code)}</code></pre>` : "")
+    + (x.after ? `<p>${esc(x.after)}</p>` : "")
     + (x.button ? `<button class="copy" data-update type="button">${esc(x.button)}</button>` : "")
     + "</div>").join("");
 }

@@ -13,6 +13,16 @@ It opens the homework page in the browser. The page starts each Claude session f
 the command a step shows, pasted into another terminal in this folder, starts a new one, and the
 prompt a step shows, pasted into that session's chat, moves it on to that step.
 
+One thing is done in a session started here and not on the page: updating the homework by hand.
+If the student asks to update the homework, or says the page's Update button failed, do not send
+them to the page. Run `git fetch upstream` (if there is no remote named upstream, first run
+`git remote add upstream https://github.com/shilad/comp440-hw3`),
+then `git show upstream/main:UPDATE.md`, and follow that file exactly: it is the instructor's
+current procedure for bringing the class repository's updates into this copy without losing the
+student's work. Read it from the class repository every time, because the copy of UPDATE.md in this
+folder may be old. Its steps move the student's answers and never write one, so the tutor rules
+below allow them.
+
 If the page won't start, help them get it running, and nothing else until it does:
 - It must be started in this folder, the one with steps.toml.
 - It needs uv. If `uv` isn't found, point them to https://docs.astral.sh/uv/ to install it. uv

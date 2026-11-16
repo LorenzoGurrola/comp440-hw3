@@ -50,6 +50,11 @@ SETTLE = 30                     # seconds a committed part's changes sit still b
 CONVO_SETTLE = 120              # and seconds its conversations sit still, so a commit never cuts one off
 RETRY_PUSH = 5 * 60
 HELP = "post in #comp440-f26 on Slack"
+# After an Update that failed: how to update by hand. A plain `claude` in the homework folder reads
+# UPDATE.md from the class repository and follows it (CLAUDE.md says so).
+UPDATE_BY_HAND = ["Stop this page: press Ctrl-C in the terminal where it runs.",
+                  "In a terminal in your homework folder, run claude.",
+                  'Tell Claude "update my homework", and answer what it asks.']
 PAUSED = ("Git is in the middle of {} in this folder, so the page is not saving or pushing your work. It "
           "starts again by itself once that is finished or undone.")
 NOT_A_CLONE = ("This folder is not a git clone of your fork, so the page cannot save your work to GitHub or "
@@ -498,7 +503,9 @@ class App:
         if not result["ok"]:
             say(f"The update didn't go through: {result.get('why', '')}")
             self.notice("update-failed", "The update could not be applied automatically, and nothing in your "
-                        f"files was changed. Please {HELP}.", missing=list(self.updates.missing))
+                        "files was changed. You can update by hand, with Claude, in three steps:",
+                        items=UPDATE_BY_HAND, after=f"If that does not work, {HELP}.",
+                        missing=list(self.updates.missing))
             return {"ok": False}
         self.notice("update-failed", None)
         self.fresh()
