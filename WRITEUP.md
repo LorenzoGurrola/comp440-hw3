@@ -1,6 +1,6 @@
 # COMP 440 HW3 write-up
 
-Name:
+Name: Lorenzo Gurrola
 
 Type each answer after the `>` under its question. An answer can run over several lines, but a blank line
 ends it: to start a new paragraph, put a line with just `>` between the two. In a table, fill every cell
@@ -28,31 +28,32 @@ There is nothing to write for this step except your name, after `Name:` at the t
 
 What verdict did the model give (*supported*, *refuted* or *doesn't say*), and what reason did it give? Quote the lines of the output that show them.
 
->
+>The verdict is "doesn't say" 
+>And the reason is 'I cannot confirm from memory who composed "Persian Surgery Dervishes" or what that composer's birth date is, so I cannot verify the claim against English Wikipedia.'
 
 ## 0c. Give it one search
 
 Which Wikipedia page did it read? Quote the line of the output that shows it.
 
->
+>"title": "Persian Surgery Dervishes"
 
 Did that page settle the claim correctly? If not, why do you think the search led there?
 
->
+>No. The birthdate of the composer was not on the page the model read. It looked at that page because the name matches text in the claim very well.
 
 ## 0d. Run the agent and read its trace
 
 In one or two sentences, how did the agent get from the claim to its verdict? Point to the trace entries by their numbers.
 
->
+>It went from the claim, to 1. searching for "Persian Surgery Dervishes", to 2. reading the wikipedia page on Terry >Riley, to 3. reading a wikidata page where it found evidence supporting the verdict. (entry 4 is the answer, >"supported")
 
 Which lookup would you have done differently, and how? If none, which one surprised you?
 
->
+>That's about exactly how I would have done it. I wouldn't say any surprised me either.
 
 Describe Wikidata briefly. Why may it be important to this task?
 
->
+>Wikidata
 
 # Part 1: How the agent works
 

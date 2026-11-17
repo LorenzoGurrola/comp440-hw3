@@ -1,0 +1,104 @@
+{
+  "step": "0a",
+  "title": "Get your copy running",
+  "session_id": null,
+  "conversations": [
+    "48e8f163-cf17-4089-9873-2ef7c162e3b4"
+  ],
+  "complete": true,
+  "checkpoints": [
+    {
+      "text": "Your .env is copied from .env.example and filled in",
+      "reached": true
+    },
+    {
+      "text": "Your name is after Name: at the top of WRITEUP.md",
+      "reached": true
+    },
+    {
+      "text": "This step's Claude session is started",
+      "reached": true
+    },
+    {
+      "text": "The set-up check says everything is ready",
+      "reached": true
+    }
+  ],
+  "answers": [
+    {
+      "question": "Name",
+      "answer": "Lorenzo Gurrola",
+      "written_by": "the student"
+    }
+  ],
+  "record": [
+    {
+      "kind": "mark",
+      "reached": [
+        "This step's Claude session is started"
+      ],
+      "time": "2026-11-17T16:39:28-06:00"
+    },
+    {
+      "kind": "mark",
+      "reached": [
+        "Your .env is copied from .env.example and filled in"
+      ],
+      "time": "2026-11-17T16:40:06-06:00"
+    },
+    {
+      "kind": "asked",
+      "text": "where do I find my api key",
+      "reached": [
+        "Your name is after Name: at the top of WRITEUP.md"
+      ],
+      "time": "2026-11-17T16:41:56-06:00"
+    },
+    {
+      "kind": "asked",
+      "text": "done",
+      "time": "2026-11-17T16:43:16-06:00"
+    },
+    {
+      "kind": "ran",
+      "text": "Ran check_setup.py",
+      "status": "ok",
+      "file": null,
+      "time": "2026-11-17T16:43:18-06:00"
+    },
+    {
+      "kind": "ran",
+      "text": "Looked at WRITEUP.md",
+      "status": "ok",
+      "file": null,
+      "reached": [
+        "The set-up check says everything is ready"
+      ],
+      "time": "2026-11-17T16:43:27-06:00"
+    }
+  ],
+  "told_the_page": [
+    {
+      "time": "2026-11-17T16:39:28-06:00",
+      "kind": "checkpoint",
+      "n": 3,
+      "text": "This step's Claude session is started"
+    },
+    {
+      "time": "2026-11-17T16:39:28-06:00",
+      "kind": "status",
+      "text": "Waiting for .env and your name"
+    },
+    {
+      "time": "2026-11-17T16:43:19-06:00",
+      "kind": "status",
+      "text": "Running the set-up check"
+    },
+    {
+      "time": "2026-11-17T16:43:30-06:00",
+      "kind": "status",
+      "text": "Set-up check passed; step 0a complete"
+    }
+  ],
+  "turns": 3
+}
