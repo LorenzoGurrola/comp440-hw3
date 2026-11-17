@@ -65,6 +65,16 @@ The Background and an example outline are under 1a on the homework page, and in 
 Write your outline of the loop in the code block: what it remembers, what it repeats, and every way it stops.
 
 ```
+Remember: all text you have read so far (none yet), which pages you have visited (none yet), and how many lookups you have made (none yet).
+While either the total number of loops is less than 12, or no verdict has been reached yet
+    Randomly choose between the following
+        Query a wikipedia page that both closely matches text in the claim, and that you haven't seen yet
+        Query a wikidata page that both closely matches text in the claim, and that you haven't seen yet
+    Ask the model to read the page
+    Check if there is some evidence in the page that either confirms the claim or refutes it.
+        If so, return that verdict
+        If not, continue with the next loop
+
 ```
 
 List each thing your loop remembers from one turn to the next, and say what would go wrong without it.

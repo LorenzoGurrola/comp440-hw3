@@ -43,4 +43,37 @@ def run_agent(claim, client=None, max_steps=MAX_STEPS, lookup=run_tool):
     # also pay attention to whether the loop has reached its limit: a claim that runs out of
     # lookups cannot be decided.
     # ---- your loop goes below this line (step 1a) ----
-    raise NotImplementedError("The loop is not written yet: see step 1a.")
+
+    # Remember: all text you have read so far (none yet), which pages you have visited (none yet),
+    # and how many lookups you have made (none yet).
+    # (all text read so far is read_so_far, and lookups made is steps: both are set up above)
+    visited = []
+
+    # While either the total number of loops is less than 12, or no verdict has been reached yet
+    # ("the total number of loops" read as the lookups made, steps; 12 is max_steps. The outline
+    # remembers no verdict; the loop returns as soon as it has one, so inside the loop "no verdict
+    # has been reached yet" is always true.)
+    while steps < max_steps or True:
+
+        #     Randomly choose between the following
+        pass  # not translated: the choice is between the two lines below, which are not translated
+
+        #         Query a wikipedia page that both closely matches text in the claim, and that you haven't seen yet
+        pass  # not translated: this line does not say who picks the query or how; the parts can only make a lookup the model asked for
+
+        #         Query a wikidata page that both closely matches text in the claim, and that you haven't seen yet
+        pass  # not translated: this line does not say who picks the query or how; the parts can only make a lookup the model asked for
+
+        #     Ask the model to read the page
+        # (read as: ask the model for its next step, sending it the whole conversation so far. No
+        # line above chose a page, so no page is added to what it is sent.)
+        reply = talk.ask()
+
+        #     Check if there is some evidence in the page that either confirms the claim or refutes it.
+        pass  # not translated: this line does not say what happens; no part reads a page for evidence
+
+        #         If so, return that verdict
+        pass  # not translated: this line needs the result of the check above, which is not translated
+
+        #         If not, continue with the next loop
+        continue
