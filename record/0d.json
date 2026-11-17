@@ -19,7 +19,7 @@
   "answers": [
     {
       "question": "In one or two sentences, how did the agent get from the claim to its verdict? Point to the trace entries by their numbers.",
-      "answer": "It went from the claim, to 1. searching for \"Persian Surgery Dervishes\", to 2. reading the wikipedia page on Terry >Riley, to 3. reading a wikidata page where it found evidence supporting the verdict. (entry 4 is the answer, >\"supported\")",
+      "answer": "It went from the claim, to 1. searching for \"Persian Surgery Dervishes\", to 2. reading the wikipedia page on Terry Riley, to 3. reading a wikidata page where it found evidence supporting the verdict. (entry 4 is the answer, \"supported\")",
       "written_by": "the student"
     },
     {
@@ -29,7 +29,7 @@
     },
     {
       "question": "Describe Wikidata briefly. Why may it be important to this task?",
-      "answer": "Wikidata",
+      "answer": "Wikidata is structured for machines to read easier than Wikipedia. It is important to this task because it has a lot of data that our agents might want to look at in order to determine the truth value of these claims.",
       "written_by": "the student"
     }
   ],
@@ -83,6 +83,11 @@
         "Your answers are in WRITEUP.md"
       ],
       "time": "2026-11-17T16:58:11-06:00"
+    },
+    {
+      "kind": "asked",
+      "text": "commit and push",
+      "time": "2026-11-17T17:03:09-06:00"
     }
   ],
   "told_the_page": [
@@ -102,5 +107,5 @@
       "text": "Waiting for your answers in WRITEUP.md"
     }
   ],
-  "turns": 5
+  "turns": 6
 }

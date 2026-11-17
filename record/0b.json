@@ -19,7 +19,7 @@
   "answers": [
     {
       "question": "What verdict did the model give (*supported*, *refuted* or *doesn't say*), and what reason did it give? Quote the lines of the output that show them.",
-      "answer": "The verdict is \"doesn't say\" \nAnd the reason is 'I cannot confirm from memory who composed \"Persian Surgery Dervishes\" or what that composer's birth date is, so I cannot verify the claim against English Wikipedia.'",
+      "answer": "The verdict is \"doesn't say\", and the reason is 'I cannot confirm from memory who composed \"Persian Surgery Dervishes\" or what that composer's birth date is, so I cannot verify the claim against English Wikipedia.'",
       "written_by": "the student"
     }
   ],
