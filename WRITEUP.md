@@ -28,8 +28,7 @@ There is nothing to write for this step except your name, after `Name:` at the t
 
 What verdict did the model give (*supported*, *refuted* or *doesn't say*), and what reason did it give? Quote the lines of the output that show them.
 
->The verdict is "doesn't say" 
->And the reason is 'I cannot confirm from memory who composed "Persian Surgery Dervishes" or what that composer's birth date is, so I cannot verify the claim against English Wikipedia.'
+>The verdict is "doesn't say", and the reason is 'I cannot confirm from memory who composed "Persian Surgery Dervishes" or what that composer's birth date is, so I cannot verify the claim against English Wikipedia.'
 
 ## 0c. Give it one search
 
@@ -45,7 +44,7 @@ Did that page settle the claim correctly? If not, why do you think the search le
 
 In one or two sentences, how did the agent get from the claim to its verdict? Point to the trace entries by their numbers.
 
->It went from the claim, to 1. searching for "Persian Surgery Dervishes", to 2. reading the wikipedia page on Terry >Riley, to 3. reading a wikidata page where it found evidence supporting the verdict. (entry 4 is the answer, >"supported")
+>It went from the claim, to 1. searching for "Persian Surgery Dervishes", to 2. reading the wikipedia page on Terry Riley, to 3. reading a wikidata page where it found evidence supporting the verdict. (entry 4 is the answer, "supported")
 
 Which lookup would you have done differently, and how? If none, which one surprised you?
 
@@ -53,7 +52,7 @@ Which lookup would you have done differently, and how? If none, which one surpri
 
 Describe Wikidata briefly. Why may it be important to this task?
 
->Wikidata
+>Wikidata is structured for machines to read easier than Wikipedia. It is important to this task because it has a lot of data that our agents might want to look at in order to determine the truth value of these claims.
 
 # Part 1: How the agent works
 
