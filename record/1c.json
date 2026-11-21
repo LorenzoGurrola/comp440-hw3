@@ -1,0 +1,108 @@
+{
+  "step": "1c",
+  "title": "Watch the agent work",
+  "session_id": null,
+  "conversations": [
+    "4687aabe-78e1-4363-aa87-2a76ce34892a"
+  ],
+  "complete": true,
+  "checkpoints": [
+    {
+      "text": "The agent's run on your 12 development claims is saved",
+      "reached": true
+    },
+    {
+      "text": "Your table and answer are in WRITEUP.md",
+      "reached": true
+    }
+  ],
+  "answers": [
+    {
+      "question": "List the three traces you read closely. At least one should be a claim the agent got wrong (if it got any wrong).",
+      "answer": "1 | The former leader of the school | 2 | no | every peice of the claim except one was correct, and the model retrieved evidence for every piece but assumed something incorrect\n2 | Scotland holds both this landmark | 3 | yes | yes, it returned an answer of \"doesn't say\" after using 11 lookups and being unable to find one piece of the claim\n3 | The film, that Buddy Baker | 4 | yes | yes, it searched and got the evidence it needed succesfully",
+      "written_by": "the student"
+    },
+    {
+      "question": "Which trace did you find most interesting, and what did the agent do well or badly in it?",
+      "answer": "I found the first trace I listed to be the most interesting. I originally thought the agent matched the dataset's label, because it retrieved almost all the information it needed. However, it assumed that the son in question was the youngest, when this evidence wasn't found.",
+      "written_by": "the student"
+    }
+  ],
+  "record": [
+    {
+      "kind": "asked",
+      "text": "What are these development claims?",
+      "time": "2026-11-21T14:52:23-06:00"
+    },
+    {
+      "kind": "asked",
+      "text": "run it",
+      "time": "2026-11-21T14:52:43-06:00"
+    },
+    {
+      "kind": "ran",
+      "text": "Looked at a git diff",
+      "status": "ok",
+      "file": null,
+      "time": "2026-11-21T14:52:45-06:00"
+    },
+    {
+      "kind": "ran",
+      "text": "Ran evaluate.py data/dev.jsonl --methods agent",
+      "status": "ok",
+      "file": null,
+      "time": "2026-11-21T14:52:48-06:00"
+    },
+    {
+      "kind": "asked",
+      "text": "try again",
+      "time": "2026-11-21T14:53:39-06:00"
+    },
+    {
+      "kind": "ran",
+      "text": "Ran evaluate.py data/dev.jsonl --methods agent",
+      "status": "ok",
+      "file": null,
+      "reached": [
+        "The agent's run on your 12 development claims is saved"
+      ],
+      "time": "2026-11-21T14:53:41-06:00"
+    },
+    {
+      "kind": "asked",
+      "text": "What does it mean that a claim needs 2 articles for example",
+      "time": "2026-11-21T14:56:52-06:00"
+    },
+    {
+      "kind": "asked",
+      "text": "What do you mean A 2-article claim needs one link like that, and a 4-article claim needs three.",
+      "time": "2026-11-21T14:57:48-06:00"
+    },
+    {
+      "kind": "asked",
+      "text": "Gor the articles clumn, do you want me to what me to put all the articles the agent looked at?",
+      "reached": [
+        "Your table and answer are in WRITEUP.md"
+      ],
+      "time": "2026-11-21T15:03:09-06:00"
+    }
+  ],
+  "told_the_page": [
+    {
+      "time": "2026-11-21T14:51:56-06:00",
+      "kind": "status",
+      "text": "Starting step 1c: waiting to run the agent"
+    },
+    {
+      "time": "2026-11-21T14:52:48-06:00",
+      "kind": "status",
+      "text": "Running the agent on your 12 development claims"
+    },
+    {
+      "time": "2026-11-21T14:54:30-06:00",
+      "kind": "status",
+      "text": "Run saved: waiting for you to read three traces"
+    }
+  ],
+  "turns": 7
+}

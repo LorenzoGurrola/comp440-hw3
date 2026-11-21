@@ -50,30 +50,43 @@ def run_agent(claim, client=None, max_steps=MAX_STEPS, lookup=run_tool):
     visited = []
 
     # While either the total number of loops is less than 12, or no verdict has been reached yet
-    # ("the total number of loops" read as the lookups made, steps; 12 is max_steps. The outline
-    # remembers no verdict; the loop returns as soon as it has one, so inside the loop "no verdict
-    # has been reached yet" is always true.)
+    # ("the total number of loops" read as the lookups made, steps, since the outline remembers no
+    # count of loops; 12 is max_steps. The outline remembers no verdict; the loop returns as soon
+    # as it has one, so inside the loop "no verdict has been reached yet" is always true.)
     while steps < max_steps or True:
 
-        #     Randomly choose between the following
-        pass  # not translated: the choice is between the two lines below, which are not translated
-
-        #         Query a wikipedia page that both closely matches text in the claim, and that you haven't seen yet
-        pass  # not translated: this line does not say who picks the query or how; the parts can only make a lookup the model asked for
-
-        #         Query a wikidata page that both closely matches text in the claim, and that you haven't seen yet
-        pass  # not translated: this line does not say who picks the query or how; the parts can only make a lookup the model asked for
-
-        #     Ask the model to read the page
-        # (read as: ask the model for its next step, sending it the whole conversation so far. No
-        # line above chose a page, so no page is added to what it is sent.)
+        #     Ask model for its next step, and give it the conversation so far
         reply = talk.ask()
 
-        #     Check if there is some evidence in the page that either confirms the claim or refutes it.
-        pass  # not translated: this line does not say what happens; no part reads a page for evidence
+        #     If it is a verdict, done, proccess is complete
+        if reply.answer is not None:
+            return talk.accept(reply.answer, steps)
 
-        #         If so, return that verdict
-        pass  # not translated: this line needs the result of the check above, which is not translated
+        #     If it is a lookup or list of lookups, check if we're on the last loop
+        # (read as: the lookups made have reached the limit; any reply that gets here asked for
+        # lookups, since a reply with an answer has already stopped the loop)
+        on_last_loop = steps >= max_steps
 
-        #         If not, continue with the next loop
-        continue
+        #     If we are on the last loop, return no verdict
+        if on_last_loop:
+            return talk.stop(RAN_OUT, steps)
+
+        #     If not, perform those lookup(s)
+        if not on_last_loop:
+            found = [(call, talk.run(call)) for call in reply.lookups]
+
+        #     Save the results to which pages we've visited, how many lookups we've made, and save the text to the variable as well
+        # (read as: for each lookup made, add what it asked for to visited and count it.
+        # talk.run() itself keeps the text read in read_so_far.)
+        for call, result in found:
+            visited.append(call.input)
+            steps += 1
+
+        #     Update the conversation with these variables, in particular, the visited pages.
+        # (read as: give each lookup what it found, and send them all to the model in one turn)
+        for call, result in found:
+            talk.give(call, result)
+        talk.send_results()
+
+        #     Increment number of loops
+        pass  # not translated: this line needs the loop to remember the number of loops, and the outline does not say that it does

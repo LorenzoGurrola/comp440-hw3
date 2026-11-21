@@ -1,0 +1,123 @@
+{
+  "step": "1d",
+  "title": "Write the agent's instructions",
+  "session_id": null,
+  "conversations": [
+    "4687aabe-78e1-4363-aa87-2a76ce34892a"
+  ],
+  "complete": true,
+  "checkpoints": [
+    {
+      "text": "Your own instructions are in instructions.md, and say: how to break a claim into pieces; when to use wikidata; when to stop; when to answer \"doesn't say\"",
+      "reached": true
+    },
+    {
+      "text": "The second run on your 12 development claims is saved",
+      "reached": true
+    },
+    {
+      "text": "Your answer is in WRITEUP.md",
+      "reached": true
+    }
+  ],
+  "answers": [
+    {
+      "question": "What changed in the agent's traces after you wrote your instructions? Give one claim as an example.",
+      "answer": "After these instructions, the model got more accurate. For example, in the claim \"The former leader of the school...\", the model found the correct answer, which was that the claim could not be verified.",
+      "written_by": "the student"
+    }
+  ],
+  "record": [
+    {
+      "kind": "asked",
+      "text": "commit and push first",
+      "time": "2026-11-21T15:13:33-06:00"
+    },
+    {
+      "kind": "asked",
+      "text": "Can the model return not supported, or only no verdict",
+      "time": "2026-11-21T15:32:46-06:00"
+    },
+    {
+      "kind": "asked",
+      "text": "done writing my instructions",
+      "time": "2026-11-21T15:33:40-06:00"
+    },
+    {
+      "kind": "ran",
+      "text": "Looked at a git diff",
+      "status": "ok",
+      "file": null,
+      "reached": [
+        "Your own instructions are in instructions.md, and say: how to break a claim into pieces; when to use wikidata; when to stop; when to answer \"doesn't say\""
+      ],
+      "time": "2026-11-21T15:33:42-06:00"
+    },
+    {
+      "kind": "asked",
+      "text": "run it",
+      "time": "2026-11-21T15:34:00-06:00"
+    },
+    {
+      "kind": "ran",
+      "text": "Ran evaluate.py data/dev.jsonl --methods agent",
+      "status": "ok",
+      "file": null,
+      "reached": [
+        "The second run on your 12 development claims is saved"
+      ],
+      "time": "2026-11-21T15:34:04-06:00"
+    },
+    {
+      "kind": "asked",
+      "text": "Can you fact check something? in the before run, claim \"The quartets that released One Thousand Years of Trouble and Vector were both a rock band.\" returned refuted, which the results viewer is saying matched the dataset, but the after run returned \"doesnt say\" which is also matching",
+      "time": "2026-11-21T15:38:00-06:00"
+    },
+    {
+      "kind": "ran",
+      "text": "Find the claim's line in the before run",
+      "status": "ok",
+      "file": null,
+      "time": "2026-11-21T15:38:03-06:00"
+    },
+    {
+      "kind": "ran",
+      "text": "Find the claim's line in the after run",
+      "status": "ok",
+      "file": null,
+      "reached": [
+        "Your answer is in WRITEUP.md"
+      ],
+      "time": "2026-11-21T15:38:04-06:00"
+    }
+  ],
+  "told_the_page": [
+    {
+      "time": "2026-11-21T15:12:46-06:00",
+      "kind": "status",
+      "text": "Starting step 1d: waiting for your instructions"
+    },
+    {
+      "time": "2026-11-21T15:33:45-06:00",
+      "kind": "checkpoint",
+      "n": 1,
+      "text": "Your own instructions are in instructions.md, and say: how to break a claim into pieces; when to use wikidata; when to stop; when to answer \"doesn't say\""
+    },
+    {
+      "time": "2026-11-21T15:33:46-06:00",
+      "kind": "status",
+      "text": "Instructions saved: waiting to run the agent again"
+    },
+    {
+      "time": "2026-11-21T15:34:04-06:00",
+      "kind": "status",
+      "text": "Running the agent with your instructions"
+    },
+    {
+      "time": "2026-11-21T15:34:59-06:00",
+      "kind": "status",
+      "text": "Run saved: waiting for you to compare the two runs"
+    }
+  ],
+  "turns": 6
+}
