@@ -81,6 +81,7 @@ While either the total number of loops is less than 12, or no verdict has been r
 
 List each thing your loop remembers from one turn to the next, and say what would go wrong without it.
 
+>NOTE: I got stuck on this section and used a different Claude agent to help me understand what this part was asking. All work is my own.
 >My loop remembers which webpages it has visited, the text on these pages, the number of lookups made, and the loop number
 
 Now open `reference_loop.py` and compare it with your loop. Describe one difference in implementation and the resulting effects on agent behavior.
