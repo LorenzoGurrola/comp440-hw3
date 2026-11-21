@@ -191,19 +191,19 @@ Fill in one row for each of the first five claims in your full run, in the order
 
 | # | Claim (first few words) | Agent's verdict | Matched the dataset's label? | Does the quoted evidence support that verdict? | Why or why not |
 |---|---|---|---|---|---|
-| 1 | Gregg Rolie and Rob Tyner | refuted | no | | |
-| 2 | | | | | |
-| 3 | | | | | |
-| 4 | | | | | |
-| 5 | | | | | |
+| 1 | Gregg Rolie and Rob Tyner | refuted | no | no | I can't pick apart what this question was trying to say right now, but it's label is supported, and all three models refuted it. The agents reasoning was that Gregg Rolie is an american keyboardist |
+| 2 |Patrick Mercer was suspended in| refuted|no |yes | the agent claims that the board recommended a suspension but that Patrick Mercer technically resigned|
+| 3 | Queen Medb of Connacht made|supported | yes|yes | the agent quotes two pieces of evidence that support the three parts of the claim|
+| 4 |John McTiernan is the director | refuted|yes |yes |the agent found one part of the claim, one star of the movie in a list of three, that was not true |
+| 5 | The Formula One World Champion|supported | yes| yes| the agent correctly found that winner of both the race and the trophy were the same person|
 
 Of the five, how many matched the dataset's label, and for how many of those does the quoted evidence support the verdict?
 
->
+>3 of the 5 matched the dataset's label, and for all of those 3, the quoted evidence supports the verdict.
 
 Is accuracy alone a good measure of this agent? Why or why not?
 
->
+>Accuracy alone is not sufficient to measure the quality of 
 
 # Part 3 (extra credit): Why the agent fails, and one change
 
