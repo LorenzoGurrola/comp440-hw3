@@ -25,7 +25,7 @@
   "answers": [
     {
       "question": "Write your outline of the loop in the code block: what it remembers, what it repeats, and every way it stops.",
-      "answer": "Remember: all text you have read so far (none yet), which pages you have visited (none yet), and how many lookups you have made (none yet).\nWhile either the total number of loops is less than 12, or no verdict has been reached yet\n    Ask model for its next step, and give it the conversation so far\n    If it is a verdict, done, proccess is complete\n    If it is a lookup or list of lookups, check if we're on the last loop\n    If we are on the last loop, return no verdict\n    If not, perform those lookup(s)\n    Save the results to which pages we've visited, how many lookups we've made, and save the text to the variable as well\n    Update the conversation with these variables\n    Increment number of loops",
+      "answer": "Remember: all text you have read so far (none yet), which pages you have visited (none yet), and how many lookups you have made (none yet).\nWhile either the total number of loops is less than 12, or no verdict has been reached yet\n    Ask model for its next step, and give it the conversation so far\n    If it is a verdict, done, process is complete\n    If it is a lookup or list of lookups, check if we're on the last loop\n    If we are on the last loop, return no verdict\n    If not, perform those lookup(s)\n    Save the results to which pages we've visited, how many lookups we've made, and save the text to the variable as well\n    Update the conversation with these variables\n    Increment number of loops",
       "written_by": "the student"
     },
     {

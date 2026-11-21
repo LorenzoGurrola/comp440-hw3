@@ -1,0 +1,107 @@
+{
+  "step": "2a",
+  "title": "Compare accuracy",
+  "session_id": null,
+  "conversations": [
+    "4687aabe-78e1-4363-aa87-2a76ce34892a"
+  ],
+  "complete": true,
+  "checkpoints": [
+    {
+      "text": "The full run is finished",
+      "reached": true
+    },
+    {
+      "text": "The report and your answers are in WRITEUP.md",
+      "reached": true
+    }
+  ],
+  "answers": [
+    {
+      "question": "Ask Claude to paste the report of your full run, from `runs/part2/report.txt`, into the empty block below.",
+      "answer": "Share of claims where the verdict matched the label:\n\n                          no-tools  one-search       agent\nHoVer, 2 articles         19/34       17/34       22/34   \nHoVer, 3 articles         23/33       17/33       24/33   \nHoVer, 4 articles         17/33       17/33       22/33   \nAll                       59/100      51/100      68/100  \n\nHoVer, supported          15/50        1/50       26/50   \nHoVer, not supported      44/50       50/50       42/50   \n\nAverage per claim:\n\n                         lookups   seconds\nno-tools                     0.0       3.5\none-search                   2.0       4.2\nagent                        5.1       8.0",
+      "written_by": "Claude, in 2a's session"
+    },
+    {
+      "question": "How do the results compare with your predictions? Where were you furthest off? Use the numbers from your run, by number of articles.",
+      "answer": "The one-search hovered around 50%. No tools did much better on 3 articles than 2 or 4. The agent all-in-all did better than I predicted. Going into the predictions, my strategy was to decrease from 2-4 articles the percentage that it would succeed at, and I think that was a blunder.",
+      "written_by": "the student"
+    },
+    {
+      "question": "Does the gap between the agent and the one-search baseline grow with the number of articles? What in the claims or the traces explains what you see?",
+      "answer": "The one-search succeeded at everything that required an answer of \"not supported,\" because after its one search it would return that by default. It scored an abysmal 2% on \"supported,\" because it would need to locate the correct information immediately. So that baseline stays at 50%, but the agent's baseline doesn't grow either, spiking at 3 articles, so the gap doesn't really grow.",
+      "written_by": "the student"
+    },
+    {
+      "question": "The no-tools baseline read nothing. How did it do, and what does that tell you about these claims?",
+      "answer": "Similarly to one-search, it performs strongly (88%) on claims marked not supported, and poorly (30%) on claims marked supported. This is likely due to the fact that it returns not supported if it wasn't trained on the data, and can't find the answer.",
+      "written_by": "the student"
+    }
+  ],
+  "record": [
+    {
+      "kind": "mark",
+      "reached": [
+        "The full run is finished"
+      ],
+      "time": "2026-11-21T15:53:07-06:00"
+    },
+    {
+      "kind": "ran",
+      "text": "Listed files",
+      "status": "ok",
+      "file": null,
+      "time": "2026-11-21T16:27:46-06:00"
+    },
+    {
+      "kind": "asked",
+      "text": "paste the report into WRITEUP.md",
+      "time": "2026-11-21T16:28:41-06:00"
+    },
+    {
+      "kind": "ran",
+      "text": "Find the 2a section in WRITEUP.md",
+      "status": "ok",
+      "file": null,
+      "time": "2026-11-21T16:28:44-06:00"
+    },
+    {
+      "kind": "ran",
+      "text": "Edited WRITEUP.md",
+      "status": "ok",
+      "file": null,
+      "time": "2026-11-21T16:28:51-06:00"
+    },
+    {
+      "kind": "asked",
+      "text": "Can you remind me how the no-tools one works",
+      "reached": [
+        "The report and your answers are in WRITEUP.md"
+      ],
+      "time": "2026-11-21T16:34:43-06:00"
+    },
+    {
+      "kind": "asked",
+      "text": "Can you spell check all my answers in writeup?",
+      "time": "2026-11-21T16:35:48-06:00"
+    },
+    {
+      "kind": "asked",
+      "text": "k done with that part",
+      "time": "2026-11-21T16:37:49-06:00"
+    }
+  ],
+  "told_the_page": [
+    {
+      "time": "2026-11-21T16:27:47-06:00",
+      "kind": "status",
+      "text": "Starting step 2a: checking the full run"
+    },
+    {
+      "time": "2026-11-21T16:28:53-06:00",
+      "kind": "status",
+      "text": "Report pasted: waiting for your 2a answers"
+    }
+  ],
+  "turns": 5
+}

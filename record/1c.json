@@ -19,7 +19,7 @@
   "answers": [
     {
       "question": "List the three traces you read closely. At least one should be a claim the agent got wrong (if it got any wrong).",
-      "answer": "1 | The former leader of the school | 2 | no | every peice of the claim except one was correct, and the model retrieved evidence for every piece but assumed something incorrect\n2 | Scotland holds both this landmark | 3 | yes | yes, it returned an answer of \"doesn't say\" after using 11 lookups and being unable to find one piece of the claim\n3 | The film, that Buddy Baker | 4 | yes | yes, it searched and got the evidence it needed succesfully",
+      "answer": "1 | The former leader of the school | 2 | no | every piece of the claim except one was correct, and the model retrieved evidence for every piece but assumed something incorrect\n2 | Scotland holds both this landmark | 3 | yes | yes, it returned an answer of \"doesn't say\" after using 11 lookups and being unable to find one piece of the claim\n3 | The film, that Buddy Baker | 4 | yes | yes, it searched and got the evidence it needed successfully",
       "written_by": "the student"
     },
     {

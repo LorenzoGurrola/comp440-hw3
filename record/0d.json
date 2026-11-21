@@ -19,7 +19,7 @@
   "answers": [
     {
       "question": "In one or two sentences, how did the agent get from the claim to its verdict? Point to the trace entries by their numbers.",
-      "answer": "It went from the claim, to 1. searching for \"Persian Surgery Dervishes\", to 2. reading the wikipedia page on Terry Riley, to 3. reading a wikidata page where it found evidence supporting the verdict. (entry 4 is the answer, \"supported\")",
+      "answer": "It went from the claim, to 1. searching for \"Persian Surgery Dervishes\", to 2. reading the Wikipedia page on Terry Riley, to 3. reading a Wikidata page where it found evidence supporting the verdict. (entry 4 is the answer, \"supported\")",
       "written_by": "the student"
     },
     {

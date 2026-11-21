@@ -44,7 +44,7 @@ Did that page settle the claim correctly? If not, why do you think the search le
 
 In one or two sentences, how did the agent get from the claim to its verdict? Point to the trace entries by their numbers.
 
->It went from the claim, to 1. searching for "Persian Surgery Dervishes", to 2. reading the wikipedia page on Terry Riley, to 3. reading a wikidata page where it found evidence supporting the verdict. (entry 4 is the answer, "supported")
+>It went from the claim, to 1. searching for "Persian Surgery Dervishes", to 2. reading the Wikipedia page on Terry Riley, to 3. reading a Wikidata page where it found evidence supporting the verdict. (entry 4 is the answer, "supported")
 
 Which lookup would you have done differently, and how? If none, which one surprised you?
 
@@ -68,7 +68,7 @@ Write your outline of the loop in the code block: what it remembers, what it rep
 Remember: all text you have read so far (none yet), which pages you have visited (none yet), and how many lookups you have made (none yet).
 While either the total number of loops is less than 12, or no verdict has been reached yet
     Ask model for its next step, and give it the conversation so far
-    If it is a verdict, done, proccess is complete
+    If it is a verdict, done, process is complete
     If it is a lookup or list of lookups, check if we're on the last loop
     If we are on the last loop, return no verdict
     If not, perform those lookup(s)
@@ -119,9 +119,9 @@ List the three traces you read closely. At least one should be a claim the agent
 
 | # | Claim (first few words) | Articles | Did it match the dataset's label? | Did it get there for a good reason? Why or why not |
 |---|---|---|---|---|
-| 1 | The former leader of the school | 2 | no | every peice of the claim except one was correct, and the model retrieved evidence for every piece but assumed something incorrect |
+| 1 | The former leader of the school | 2 | no | every piece of the claim except one was correct, and the model retrieved evidence for every piece but assumed something incorrect |
 | 2 | Scotland holds both this landmark | 3 | yes | yes, it returned an answer of "doesn't say" after using 11 lookups and being unable to find one piece of the claim |
-| 3 | The film, that Buddy Baker | 4 | yes | yes, it searched and got the evidence it needed succesfully |
+| 3 | The film, that Buddy Baker | 4 | yes | yes, it searched and got the evidence it needed successfully |
 
 Which trace did you find most interesting, and what did the agent do well or badly in it?
 
@@ -154,19 +154,36 @@ How many lookups will the agent make per claim, on average? Why?
 Ask Claude to paste the report of your full run, from `runs/part2/report.txt`, into the empty block below.
 
 ```
+Share of claims where the verdict matched the label:
+
+                          no-tools  one-search       agent
+HoVer, 2 articles         19/34       17/34       22/34   
+HoVer, 3 articles         23/33       17/33       24/33   
+HoVer, 4 articles         17/33       17/33       22/33   
+All                       59/100      51/100      68/100  
+
+HoVer, supported          15/50        1/50       26/50   
+HoVer, not supported      44/50       50/50       42/50   
+
+Average per claim:
+
+                         lookups   seconds
+no-tools                     0.0       3.5
+one-search                   2.0       4.2
+agent                        5.1       8.0
 ```
 
 How do the results compare with your predictions? Where were you furthest off? Use the numbers from your run, by number of articles.
 
->
+>The one-search hovered around 50%. No tools did much better on 3 articles than 2 or 4. The agent all-in-all did better than I predicted. Going into the predictions, my strategy was to decrease from 2-4 articles the percentage that it would succeed at, and I think that was a blunder.
 
 Does the gap between the agent and the one-search baseline grow with the number of articles? What in the claims or the traces explains what you see?
 
->
+>The one-search succeeded at everything that required an answer of "not supported," because after its one search it would return that by default. It scored an abysmal 2% on "supported," because it would need to locate the correct information immediately. So that baseline stays at 50%, but the agent's baseline doesn't grow either, spiking at 3 articles, so the gap doesn't really grow.
 
 The no-tools baseline read nothing. How did it do, and what does that tell you about these claims?
 
->
+>Similarly to one-search, it performs strongly (88%) on claims marked not supported, and poorly (30%) on claims marked supported. This is likely due to the fact that it returns not supported if it wasn't trained on the data, and can't find the answer.
 
 ## 2b. Check the evidence yourself
 
@@ -174,7 +191,7 @@ Fill in one row for each of the first five claims in your full run, in the order
 
 | # | Claim (first few words) | Agent's verdict | Matched the dataset's label? | Does the quoted evidence support that verdict? | Why or why not |
 |---|---|---|---|---|---|
-| 1 | | | | | |
+| 1 | Gregg Rolie and Rob Tyner | refuted | no | | |
 | 2 | | | | | |
 | 3 | | | | | |
 | 4 | | | | | |
