@@ -203,7 +203,7 @@ Of the five, how many matched the dataset's label, and for how many of those doe
 
 Is accuracy alone a good measure of this agent? Why or why not?
 
->Accuracy alone is not sufficient to measure the quality of 
+>Yes, in the places the agent got correct answers, I generally found they were for the right reasons.
 
 # Part 3 (extra credit): Why the agent fails, and one change
 
