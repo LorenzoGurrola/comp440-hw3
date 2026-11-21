@@ -1643,7 +1643,7 @@ This step was done in the conversation under 0a, session `48e8f163`, from the me
 <!-- transcript-session: 4687aabe-78e1-4363-aa87-2a76ce34892a | 2026-11-21T20:36:12.400Z -->
 ## Session `4687aabe` — 2026-11-21 20:36:12
 
-*36 user turns. Tool output shortened; reasoning omitted.*
+*37 user turns. Tool output shortened; reasoning omitted.*
 
 **User:**
 Start step 1b.
@@ -2803,6 +2803,40 @@ I read the 2b section of WRITEUP.md. All five rows of the table and both answers
 Once the page ticks 2b, it commits and pushes your work as "Part 2 done". The instructor's page says you then submit it yourself, as the README's "Submitting" section says. If you're doing the extra credit, submit after Part 3 instead.
 
 Part 3 is extra credit. Its first step is 3a, "Sort the failures". To start it, go to the homework page and either paste its prompt into this chat or use its command to start a new session.
+
+**User:**
+is everything committed
+
+**Claude:**
+- 🔧 `Bash` — git status; git log --oneline -5
+
+  ```
+  On branch main
+  Your branch is up to date with 'origin/main'.
+  
+  nothing to commit, working tree clean
+  ff86adc Parts 1 and 2 updated
+  cb8f2d3 Part 2 updated
+  721f76e Part 2 done
+  30a2212 Parts 0 and 1 updated
+  98674cb Part 1 updated
+  ```
+
+```
+On branch main
+Your branch is up to date with 'origin/main'.
+
+nothing to commit, working tree clean
+ff86adc Parts 1 and 2 updated
+cb8f2d3 Part 2 updated
+721f76e Part 2 done
+30a2212 Parts 0 and 1 updated
+98674cb Part 1 updated
+```
+
+Yes, everything is committed. "Working tree clean" means no file has changes that aren't in a commit. The page made the "Part 2 done" commit, and newer commits came after it. Git also says your branch is up to date with GitHub. That compares against GitHub as of the last time this copy talked to it, which was at the last push.
+
+To submit, follow the README's "Submitting" section. It includes the form link you have selected. If you're doing the extra credit, you can do Part 3 first and submit after that.
 
 <!-- end-session: 4687aabe-78e1-4363-aa87-2a76ce34892a -->
 
