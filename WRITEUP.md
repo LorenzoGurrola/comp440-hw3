@@ -145,7 +145,7 @@ Predict the share of claims each version will get right (its verdict matches the
 
 How many lookups will the agent make per claim, on average? Why?
 
->The 
+>The before and after runs both made around 7.5 lookups on average, so I will predict the same number here.
 
 # Part 2: The agent against the baselines
 
